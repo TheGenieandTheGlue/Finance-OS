@@ -34,7 +34,7 @@ const SEED = {
     emergency: 250,
   },
   goals: [
-    { id: 'emergency', name: '🚨 Emergency fund', target: 10000, current: 0, color: 'emergency', monthly: 500 },
+    { id: 'emergency', name: '⭐ Plus Fund', target: 10000, current: 0, color: 'emergency', monthly: 500 },
     { id: 'car',       name: '🚗 Car down payment', target: 55000, current: 0, color: 'car', monthly: 6500 },
     { id: 'brazil',    name: '🇧🇷 Brazil trip', target: 27500, current: 0, color: 'brazil', monthly: 650 },
     { id: 'room',      name: '🛏 Room upgrades', target: 6000, current: 0, color: 'room', monthly: 500 },
