@@ -74,7 +74,7 @@ Now it lives as an icon on your phone like an app. The + button in the bottom-ri
 
 **On payday (every 14 days):**
 1. Open the app
-2. Tap **⚡ Catorcena Setup** — instantly logs your paycheck + all 6 planned transfers (car, Brazil, crypto, YouTube, room, emergency)
+2. Tap **⚡ Catorcena Setup** — instantly logs your paycheck + all 6 planned transfers (car, Brazil, crypto, YouTube, room, plus fund)
 3. Done. Your budget is set for the period.
 
 **On the 1st of the month:**
