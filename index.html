@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Home</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('home');
+
+    const s = getDashboardStats();
+    const goals = getGoalProgress();
+    const actuals = getCategoryActuals();
+    const recent = state.transactions.slice(0, 6);
+
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+    document.getElementById('content').innerHTML = `
+      <div class="page-head fade-in">
+        <div>
+          <div class="eyebrow">Life Control Center</div>
+          <h1 class="page-title">${greeting}, <em>here's where you stand</em></h1>
+          <div class="page-sub">Catorcena · day ${14 - s.cat.daysLeft} of 14 · ${s.cat.daysLeft} days to next payday</div>
+        </div>
+        <div class="health-badge">
+          <div class="label">Month health</div>
+          <div class="value">${s.healthScore}<span style="font-size:18px;color:var(--ink-mute)">/100</span></div>
+          <div class="status">${s.status}</div>
+        </div>
+      </div>
+
+      <div class="stats-grid fade-in">
+        <div class="stat">
+          <div class="label">Safe today</div>
+          <div class="value">${mxn(Math.max(0, s.safeDaily))}</div>
+          <div class="delta">variable / day</div>
+        </div>
+        <div class="stat">
+          <div class="label">Catorcena left</div>
+          <div class="value">${mxn(s.catRemaining)}</div>
+          <div class="delta">of ${mxn(state.income.biweekly)} planned</div>
+        </div>
+        <div class="stat">
+          <div class="label">Saved this month</div>
+          <div class="value">${mxn(s.monthSaved)}</div>
+          <div class="delta ${s.savingsRate >= 30 ? 'good' : 'warn'}">${s.savingsRate}% rate</div>
+        </div>
+        <div class="stat">
+          <div class="label">Impulses</div>
+          <div class="value">${s.impulses}<span style="font-size:18px;color:var(--ink-mute)"> / 3</span></div>
+          <div class="delta ${s.impulses <= 3 ? 'good' : 'bad'}">${s.impulses <= 3 ? 'within target' : 'over target'}</div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">Savings goals</div>
+          <div class="card-meta">${goals.length} active</div>
+        </div>
+        ${goals.map(g => `
+          <div class="goal">
+            <div class="goal-head">
+              <span class="goal-name">${g.name}</span>
+              <span class="goal-numbers">${mxn(g.current)} / ${mxn(g.target)} · ${g.pct}%</span>
+            </div>
+            <div class="bar"><div class="bar-fill ${g.color}" style="width:${g.pct}%"></div></div>
+            <div class="goal-foot">
+              <span>${mxn(g.monthly)}/mo planned</span>
+              <span class="pace ${g.pct > 0 ? 'on' : 'off'}">${g.pct > 0 ? '✓ contributions logged' : '— no contributions yet'}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="grid-2 fade-in">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">This catorcena</div>
+            <div class="card-meta">${mxn(state.income.biweekly)} planned</div>
+          </div>
+          <table class="budget-table">
+            <thead><tr><th>Category</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Left</th></tr></thead>
+            <tbody>
+              ${budgetRow('Fixed', state.catorcena.fixed, actuals.fixed)}
+              ${budgetRow('Variable', state.catorcena.variable, actuals.variable)}
+              ${budgetRow('Car', state.catorcena.car, actuals.car)}
+              ${budgetRow('YouTube', state.catorcena.youtube, actuals.youtube)}
+              ${budgetRow('Crypto', state.catorcena.crypto, actuals.crypto)}
+              ${budgetRow('Room', state.catorcena.room, actuals.room)}
+              ${budgetRow('Brazil', state.catorcena.brazil, actuals.brazil)}
+              ${budgetRow('Emergency', state.catorcena.emergency, actuals.emergency)}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Habits this week</div>
+            <div class="card-meta">Last 7 days</div>
+          </div>
+          <div class="habit-row"><span>💪 Gym</span><span class="count good">${state.habits.gym} / 7</span></div>
+          <div class="habit-row"><span>🚫 No-impulse day</span><span class="count ${state.habits.noImpulse >= 5 ? 'good' : 'warn'}">${state.habits.noImpulse} / 7</span></div>
+          <div class="habit-row"><span>🎬 YouTube work</span><span class="count ${state.habits.ytWork >= 4 ? 'good' : 'warn'}">${state.habits.ytWork} / 7</span></div>
+          <div class="habit-row"><span>🪙 Crypto DCA</span><span class="count ${state.habits.dca ? 'good' : 'warn'}">${state.habits.dca ? '✓ done' : '— pending'}</span></div>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-mute)">
+            Weekly score: <strong style="color:var(--ink)">${state.habits.gym + state.habits.noImpulse + state.habits.ytWork + (state.habits.dca ? 1 : 0)} / 22</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">Recent transactions</div>
+          <a href="transactions.html" class="card-meta" style="color:var(--info)">View all →</a>
+        </div>
+        ${recent.length === 0 ? `
+          <div class="empty"><em>No transactions yet.</em><br>Tap + or run Catorcena Setup to start.</div>
+        ` : recent.map(t => `
+          <div class="txn">
+            <div class="date">${formatDate(t.date)}</div>
+            <div class="name">${t.name}${t.isImpulse ? ' 🚨' : ''}</div>
+            <div><span class="pill ${pillClass(t.category)}">${t.category}</span></div>
+            <div class="amount ${t.type === 'Income' ? 'in' : ''}">${t.type === 'Income' ? '+' : '−'}${mxn(t.amount)}</div>
+          </div>
+        `).join('')}
+        <div class="btn-row">
+          <button class="btn" onclick="openAddModal({category:'Food-Out'})">+ Food-out</button>
+          <button class="btn" onclick="openAddModal({category:'Transport'})">+ Transport</button>
+          <button class="btn" onclick="openAddModal({category:'Impulse',impulse:true})">+ Impulse</button>
+          <button class="btn primary" onclick="runCatorcenaSetup()">⚡ Catorcena Setup</button>
+        </div>
+      </div>
+    `;
+
+    function budgetRow(label, plan, actual) {
+      const pct = plan > 0 ? Math.min(100, (actual / plan) * 100) : 0;
+      const left = plan - actual;
+      const cls = pct >= 100 ? 'done' : pct >= 85 ? 'bad' : pct >= 60 ? 'warn' : '';
+      return `<tr>
+        <td class="cat"><span class="mini-bar"><div class="${cls}" style="width:${pct}%"></div></span>${label}</td>
+        <td class="num">${mxn(plan)}</td>
+        <td class="num">${mxn(actual)}</td>
+        <td class="num" style="color:${left < 0 ? 'var(--bad)' : left === plan ? 'var(--ink-mute)' : 'var(--ink)'}">${pct >= 100 ? '✓' : mxn(left)}</td>
+      </tr>`;
+    }
+
+    mountAddModal();
+  </script>
+</body>
+</html>

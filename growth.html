@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Growth</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('growth');
+
+    function render() {
+      const totalInvested = state.crypto.reduce((s, c) => s + c.invested, 0);
+      const totalValue = state.crypto.reduce((s, c) => s + (c.held * c.current), 0);
+      const pnl = totalValue - totalInvested;
+      const pnlPct = totalInvested > 0 ? Math.round((pnl / totalInvested) * 100) : 0;
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-head fade-in">
+          <div>
+            <div class="eyebrow">📈 Growth</div>
+            <h1 class="page-title">Content <em>&amp;</em> crypto</h1>
+            <div class="page-sub">Track what your investment money is doing</div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">YouTube channels</div>
+            <div class="card-meta">${mxn(state.planned.youtube)}/mo invested</div>
+          </div>
+          <div class="growth-grid">
+            ${state.youtube.map((c, i) => `
+              <div class="growth-card">
+                <div class="label">${c.name}</div>
+                <div class="number">${c.subs.toLocaleString()}</div>
+                <div class="change">subs · ${c.monthlyGoal}/mo goal</div>
+                <div class="btn-row" style="margin-top:0.75rem">
+                  <button class="btn" onclick="updateSubs(${i})">Update subs</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="margin-top:1.5rem">
+            <div class="card-meta" style="margin-bottom:0.5rem">Video pipeline</div>
+            <div class="pipeline">
+              <div class="pipeline-step"><div class="step-label">💡 Idea</div><div class="step-count">0</div></div>
+              <div class="pipeline-step"><div class="step-label">✍️ Script</div><div class="step-count">0</div></div>
+              <div class="pipeline-step"><div class="step-label">🎥 Film</div><div class="step-count">0</div></div>
+              <div class="pipeline-step"><div class="step-label">✂️ Edit</div><div class="step-count">0</div></div>
+              <div class="pipeline-step"><div class="step-label">✅ Done</div><div class="step-count">0</div></div>
+            </div>
+            <div class="empty" style="padding:1rem 0;font-size:12px">
+              <em>Video idea database coming in v2 — track in Notion or a notes app for now.</em>
+            </div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">Crypto portfolio</div>
+            <div class="card-meta" style="color:${pnl >= 0 ? 'var(--good)' : 'var(--bad)'}">${pnl >= 0 ? '+' : ''}${mxn(pnl)} · ${pnlPct >= 0 ? '+' : ''}${pnlPct}%</div>
+          </div>
+
+          <table class="budget-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th class="num">Held</th>
+                <th class="num">Avg buy</th>
+                <th class="num">Current</th>
+                <th class="num">Value</th>
+                <th class="num">P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.crypto.map((c, i) => {
+                const value = c.held * c.current;
+                const cpnl = value - c.invested;
+                const cpct = c.invested > 0 ? Math.round((cpnl / c.invested) * 100) : 0;
+                return `<tr>
+                  <td class="cat" style="font-weight:500">${c.asset}</td>
+                  <td class="num">${c.held}</td>
+                  <td class="num">${mxn(c.avgBuy)}</td>
+                  <td class="num">${mxn(c.current)} <button onclick="updatePrice(${i})" style="background:none;border:none;color:var(--ink-mute);font-size:11px;cursor:pointer;margin-left:4px">✎</button></td>
+                  <td class="num">${mxn(value)}</td>
+                  <td class="num" style="color:${cpnl >= 0 ? 'var(--good)' : 'var(--bad)'}">${cpnl >= 0 ? '+' : ''}${mxn(cpnl)}<br><span style="font-size:10px">${cpct >= 0 ? '+' : ''}${cpct}%</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="insight" style="margin-top:1.5rem">
+            <strong>💡 Reminder:</strong> Update current prices manually each Sunday. Crypto buys go through quick-add with category Crypto.
+          </div>
+
+          <div class="btn-row">
+            <button class="btn" onclick="openAddModal({category:'Crypto',type:'Investment'})">+ Log crypto buy</button>
+            <button class="btn" onclick="addAsset()">+ Add asset</button>
+          </div>
+        </div>
+      `;
+
+      mountAddModal();
+    }
+
+    function updateSubs(i) {
+      const current = state.youtube[i].subs;
+      const val = prompt(`Update subscriber count for ${state.youtube[i].name}:`, current);
+      if (val === null) return;
+      const n = parseInt(val);
+      if (isNaN(n)) return;
+      state.youtube[i].subs = n;
+      saveState();
+      render();
+    }
+
+    function updatePrice(i) {
+      const current = state.crypto[i].current;
+      const val = prompt(`Current ${state.crypto[i].asset} price in MXN:`, current);
+      if (val === null) return;
+      const n = parseFloat(val);
+      if (isNaN(n)) return;
+      state.crypto[i].current = n;
+      saveState();
+      render();
+    }
+
+    function addAsset() {
+      const name = prompt('Asset ticker (e.g. ADA):');
+      if (!name) return;
+      state.crypto.push({ asset: name.toUpperCase(), held: 0, avgBuy: 0, current: 0, invested: 0 });
+      saveState();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

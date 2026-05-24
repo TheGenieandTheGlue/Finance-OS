@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Review</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('review');
+
+    const s = getDashboardStats();
+    const monthTxns = txnsInCurrentMonth();
+    const impulseTxns = monthTxns.filter(t => t.isImpulse);
+    const savedThisMonth = sumBy(monthTxns, t => SAVINGS_CATS.includes(t.category));
+    const spentThisCat = sumBy(s.catTxns, t => t.type !== 'Income');
+
+    const weekNum = Math.ceil(((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000 + 1) / 7);
+    const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+    function getDraft() {
+      try { return JSON.parse(localStorage.getItem('review-draft')) || {}; } catch { return {}; }
+    }
+    function saveDraft(field, value) {
+      const d = getDraft();
+      d[field] = value;
+      localStorage.setItem('review-draft', JSON.stringify(d));
+    }
+    const draft = getDraft();
+
+    document.getElementById('content').innerHTML = `
+      <div class="page-head fade-in">
+        <div>
+          <div class="eyebrow">🧠 Life / Reviews</div>
+          <h1 class="page-title">Week ${weekNum} <em>review</em></h1>
+          <div class="page-sub">${todayStr} · 15 minutes · be honest</div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">Auto-pulled snapshot</div>
+          <div class="card-meta">From your transaction log</div>
+        </div>
+        <div class="review-snapshot">
+          <div class="snap">
+            <div class="label">Spent this catorcena</div>
+            <div class="value">${mxn(spentThisCat)}</div>
+          </div>
+          <div class="snap">
+            <div class="label">Saved this month</div>
+            <div class="value" style="color:var(--good)">${mxn(savedThisMonth)}</div>
+          </div>
+          <div class="snap">
+            <div class="label">Impulses</div>
+            <div class="value">${impulseTxns.length}</div>
+          </div>
+          <div class="snap">
+            <div class="label">Health score</div>
+            <div class="value">${s.healthScore}</div>
+          </div>
+        </div>
+      </div>
+
+      ${impulseTxns.length > 0 ? `
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">🚨 Impulse audit</div>
+            <div class="card-meta">${impulseTxns.length} this period — write why for each</div>
+          </div>
+          ${impulseTxns.map(t => `
+            <div style="padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px">
+              <strong>${mxn(t.amount)} — ${t.name}</strong>
+              <div style="color:var(--ink-mute);margin-top:4px">Why? <em>${t.notes || '(write reflection)'}</em></div>
+            </div>
+          `).join('')}
+          <div class="insight warn">
+            <strong>The pattern question:</strong> Are these all on the same day of the week? Same emotional state? Same trigger? Spot it.
+          </div>
+        </div>
+      ` : `
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">🎉 Zero impulses this month</div>
+          </div>
+          <div class="insight good">
+            <strong>Excellent.</strong> Whatever you did to avoid impulse purchases this month — repeat it. Even one fewer impulse buy compounds into thousands of pesos per year.
+          </div>
+        </div>
+      `}
+
+      <div class="grid-2 fade-in">
+        <div class="card">
+          <div class="card-head"><div class="card-title">✅ 3 wins</div></div>
+          <textarea class="review-input" id="wins" placeholder="1. Hit crypto DCA&#10;2. Channel A passed 2k subs&#10;3. Said no to dinner out twice" oninput="saveDraft('wins', this.value)">${draft.wins || ''}</textarea>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">📝 3 lessons</div></div>
+          <textarea class="review-input" id="lessons" placeholder="1. Sunday boredom = danger zone&#10;2. Need meal prep on Sundays&#10;3. YT work dropped — only 3/7" oninput="saveDraft('lessons', this.value)">${draft.lessons || ''}</textarea>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head"><div class="card-title">🎯 Next week focus</div></div>
+        <textarea class="review-input" id="focus" placeholder="Meal prep Sundays. 5 YouTube work sessions. Zero impulse buys." oninput="saveDraft('focus', this.value)">${draft.focus || ''}</textarea>
+        <div class="btn-row">
+          <button class="btn primary" onclick="saveReview()">Save review</button>
+          <button class="btn" onclick="clearDraft()">Clear</button>
+        </div>
+      </div>
+
+      ${state.reviews.length > 0 ? `
+        <div class="card fade-in">
+          <div class="card-head"><div class="card-title">📚 Past reviews</div></div>
+          ${state.reviews.slice(0, 5).map(r => `
+            <div style="padding:12px;background:var(--bg-elev);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <strong>Week ${r.week} · ${r.date}</strong>
+                <span style="color:var(--ink-mute);font-size:11px">Health: ${r.health}/100</span>
+              </div>
+              <div style="color:var(--ink-soft);white-space:pre-wrap;font-size:12px">${r.focus || '—'}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+
+    function saveReview() {
+      const d = getDraft();
+      const review = {
+        week: weekNum,
+        date: todayISO(),
+        wins: d.wins || '',
+        lessons: d.lessons || '',
+        focus: d.focus || '',
+        health: s.healthScore,
+      };
+      state.reviews.unshift(review);
+      saveState();
+      localStorage.removeItem('review-draft');
+      alert('Review saved.');
+      location.reload();
+    }
+
+    function clearDraft() {
+      if (!confirm('Clear the draft?')) return;
+      localStorage.removeItem('review-draft');
+      location.reload();
+    }
+
+    mountAddModal();
+  </script>
+</body>
+</html>

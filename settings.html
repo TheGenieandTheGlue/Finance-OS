@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Settings</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('settings');
+
+    const sizeKB = (JSON.stringify(state).length / 1024).toFixed(1);
+
+    document.getElementById('content').innerHTML = `
+      <div class="page-head fade-in">
+        <div>
+          <div class="eyebrow">⚙ System / Settings</div>
+          <h1 class="page-title"><em>Settings</em> &amp; data</h1>
+          <div class="page-sub">Backup, restore, and tune the system</div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">💪 Habits this week</div>
+          <div class="card-meta">Update manually each evening</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">Gym days (0-7)</label>
+            <input type="number" min="0" max="7" value="${state.habits.gym}" id="h-gym" onchange="updateHabit('gym', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">No-impulse days</label>
+            <input type="number" min="0" max="7" value="${state.habits.noImpulse}" onchange="updateHabit('noImpulse', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">YouTube work days</label>
+            <input type="number" min="0" max="7" value="${state.habits.ytWork}" onchange="updateHabit('ytWork', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:1.5rem">
+            <input type="checkbox" id="h-dca" ${state.habits.dca ? 'checked' : ''} onchange="updateHabit('dca', this.checked)" style="width:18px;height:18px">
+            <label for="h-dca" style="font-size:14px">Crypto DCA done this week</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">💾 Backup &amp; restore</div>
+          <div class="card-meta">${sizeKB} KB used</div>
+        </div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
+          Your data lives only in this browser. Export weekly to keep a safe copy. Import to restore or sync across devices.
+        </p>
+        <div class="btn-row">
+          <button class="btn primary" onclick="exportData()">⬇ Export backup (JSON)</button>
+          <label class="btn" style="cursor:pointer">
+            ⬆ Import backup
+            <input type="file" accept=".json" onchange="if(this.files[0])importData(this.files[0])" style="display:none">
+          </label>
+          <button class="btn" onclick="resetData()" style="color:var(--bad)">⟲ Reset to defaults</button>
+        </div>
+        <div class="insight warn" style="margin-top:1.25rem">
+          <strong>Important:</strong> Clearing browser data, switching browsers, or using incognito mode will lose your transactions. Back up every Sunday during the weekly review.
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">💰 Budget configuration</div>
+          <div class="card-meta">Edit your monthly plan</div>
+        </div>
+        <table class="budget-table">
+          <thead><tr><th>Category</th><th class="num">Monthly</th><th class="num">Biweekly</th></tr></thead>
+          <tbody>
+            ${configRow('Fixed expenses', 'fixed')}
+            ${configRow('Variable (food/transport/impulse)', 'variable')}
+            ${configRow('Car savings', 'car')}
+            ${configRow('Brazil savings', 'brazil')}
+            ${configRow('Emergency fund', 'emergency')}
+            ${configRow('YouTube investment', 'youtube')}
+            ${configRow('Crypto DCA', 'crypto')}
+            ${configRow('Room upgrades', 'room')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head"><div class="card-title">📦 Data summary</div></div>
+        <table class="budget-table">
+          <tr><td class="cat">Total transactions</td><td class="num">${state.transactions.length}</td></tr>
+          <tr><td class="cat">Reviews saved</td><td class="num">${state.reviews.length}</td></tr>
+          <tr><td class="cat">YouTube channels tracked</td><td class="num">${state.youtube.length}</td></tr>
+          <tr><td class="cat">Crypto assets tracked</td><td class="num">${state.crypto.length}</td></tr>
+          <tr><td class="cat">Storage used</td><td class="num">${sizeKB} KB</td></tr>
+        </table>
+      </div>
+    `;
+
+    function configRow(label, key) {
+      return `<tr>
+        <td class="cat">${label}</td>
+        <td class="num"><input type="number" value="${state.planned[key]}" onchange="updatePlanned('${key}', this.value)" style="width:90px;text-align:right;border:1px solid var(--line);border-radius:4px;padding:4px;font-family:var(--font-mono);font-size:12px;background:var(--bg-elev)"></td>
+        <td class="num"><input type="number" value="${state.catorcena[key]}" onchange="updateCatorcena('${key}', this.value)" style="width:90px;text-align:right;border:1px solid var(--line);border-radius:4px;padding:4px;font-family:var(--font-mono);font-size:12px;background:var(--bg-elev)"></td>
+      </tr>`;
+    }
+
+    function updatePlanned(key, val) {
+      state.planned[key] = parseFloat(val) || 0;
+      saveState();
+    }
+    function updateCatorcena(key, val) {
+      state.catorcena[key] = parseFloat(val) || 0;
+      saveState();
+    }
+    function updateHabit(key, val) {
+      state.habits[key] = key === 'dca' ? val : (parseInt(val) || 0);
+      saveState();
+    }
+
+    mountAddModal();
+  </script>
+</body>
+</html>

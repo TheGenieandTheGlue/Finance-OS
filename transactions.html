@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Transactions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('txn');
+
+    let filter = 'catorcena'; // 'catorcena' | 'month' | 'impulse' | 'all'
+
+    function render() {
+      const all = state.transactions;
+      let list = all;
+      if (filter === 'catorcena') list = txnsInCurrentCatorcena();
+      if (filter === 'month') list = txnsInCurrentMonth();
+      if (filter === 'impulse') list = all.filter(t => t.isImpulse);
+
+      const total = list.filter(t => t.type !== 'Income').reduce((s, t) => s + t.amount, 0);
+      const income = list.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-head fade-in">
+          <div>
+            <div class="eyebrow">💰 Money / Transactions</div>
+            <h1 class="page-title"><em>Ledger</em></h1>
+            <div class="page-sub">All money in and out · auto-categorized</div>
+          </div>
+        </div>
+
+        <div class="btn-row fade-in" style="margin-bottom:1.5rem;margin-top:0">
+          <button class="btn ${filter==='catorcena'?'primary':''}" onclick="setFilter('catorcena')">This catorcena</button>
+          <button class="btn ${filter==='month'?'primary':''}" onclick="setFilter('month')">This month</button>
+          <button class="btn ${filter==='impulse'?'primary':''}" onclick="setFilter('impulse')">🚨 Impulse audit</button>
+          <button class="btn ${filter==='all'?'primary':''}" onclick="setFilter('all')">All time</button>
+        </div>
+
+        <div class="stats-grid fade-in" style="margin-bottom:1.5rem">
+          <div class="stat">
+            <div class="label">Total in</div>
+            <div class="value small" style="color:var(--good)">+${mxn(income)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Total out</div>
+            <div class="value small">−${mxn(total)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Net</div>
+            <div class="value small">${mxn(income - total)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Count</div>
+            <div class="value small">${list.length}</div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          ${list.length === 0 ? `
+            <div class="empty">
+              <em>No transactions yet.</em><br><br>
+              Tap the + button or use a quick action below to start.
+              <div class="btn-row" style="justify-content:center;margin-top:1.5rem">
+                <button class="btn" onclick="openAddModal({category:'Food-Out'})">+ Food-out</button>
+                <button class="btn" onclick="openAddModal({category:'Transport'})">+ Transport</button>
+                <button class="btn primary" onclick="runCatorcenaSetup()">⚡ Catorcena Setup</button>
+              </div>
+            </div>
+          ` : list.map(t => `
+            <div class="txn">
+              <div class="date">${formatDate(t.date)}</div>
+              <div class="name">${t.name}${t.isImpulse ? ' 🚨' : ''}</div>
+              <div><span class="pill ${pillClass(t.category)}">${t.category}</span></div>
+              <div class="amount ${t.type === 'Income' ? 'in' : ''}">
+                ${t.type === 'Income' ? '+' : '−'}${mxn(t.amount)}
+                <button onclick="deleteTxn(${t.id})" style="background:none;border:none;color:var(--ink-faint);font-size:14px;margin-left:8px;cursor:pointer" title="Delete">×</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="btn-row fade-in">
+          <button class="btn" onclick="openAddModal({category:'Food-Out'})">+ Food-out</button>
+          <button class="btn" onclick="openAddModal({category:'Transport'})">+ Transport</button>
+          <button class="btn" onclick="openAddModal({category:'Impulse',impulse:true})">+ Impulse</button>
+          <button class="btn" onclick="openAddModal({category:'Crypto',type:'Investment'})">+ Crypto buy</button>
+          <button class="btn primary" onclick="runCatorcenaSetup()">⚡ Catorcena Setup</button>
+          <button class="btn" onclick="runSubscriptionsBlock()">📅 Add monthly subs</button>
+        </div>
+      `;
+
+      mountAddModal();
+    }
+
+    function setFilter(f) { filter = f; render(); }
+
+    function deleteTxn(id) {
+      if (!confirm('Delete this transaction?')) return;
+      state.transactions = state.transactions.filter(t => t.id !== id);
+      saveState();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

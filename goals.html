@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — Goals</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('goals');
+
+    const goals = getGoalProgress();
+    const totalTarget = goals.reduce((s, g) => s + g.target, 0);
+    const totalCurrent = goals.reduce((s, g) => s + g.current, 0);
+    const overallPct = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+
+    document.getElementById('content').innerHTML = `
+      <div class="page-head fade-in">
+        <div>
+          <div class="eyebrow">📈 Growth / Savings goals</div>
+          <h1 class="page-title">Your <em>goals</em></h1>
+          <div class="page-sub">${mxn(totalCurrent)} of ${mxn(totalTarget)} saved · ${overallPct}% combined</div>
+        </div>
+      </div>
+
+      <div class="stats-grid fade-in" style="margin-bottom:2rem">
+        <div class="stat">
+          <div class="label">Combined target</div>
+          <div class="value small">${mxn(totalTarget)}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Saved so far</div>
+          <div class="value small" style="color:var(--good)">${mxn(totalCurrent)}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Remaining</div>
+          <div class="value small">${mxn(totalTarget - totalCurrent)}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Monthly plan</div>
+          <div class="value small">${mxn(goals.reduce((s, g) => s + g.monthly, 0))}</div>
+        </div>
+      </div>
+
+      ${goals.map(g => `
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">${g.name}</div>
+            <div class="card-meta">${g.pct}% complete</div>
+          </div>
+          <div class="bar" style="height:10px;margin-bottom:14px">
+            <div class="bar-fill ${g.color}" style="width:${g.pct}%"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;font-size:13px">
+            <div>
+              <div class="card-meta" style="margin-bottom:4px">Target</div>
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target)}</div>
+            </div>
+            <div>
+              <div class="card-meta" style="margin-bottom:4px">Current</div>
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:500;color:var(--good)">${mxn(g.current)}</div>
+            </div>
+            <div>
+              <div class="card-meta" style="margin-bottom:4px">Remaining</div>
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target - g.current)}</div>
+            </div>
+            <div>
+              <div class="card-meta" style="margin-bottom:4px">Monthly</div>
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.monthly)}</div>
+            </div>
+          </div>
+          <div class="insight" style="margin-top:1.5rem">
+            <strong>${g.monthly > 0 ? `~${Math.ceil((g.target - g.current) / g.monthly)} months` : '—'}</strong>
+            ${g.monthly > 0 ? `at ${mxn(g.monthly)}/month — and the next savings fund injection (Jan/Jul) accelerates this.` : 'set a monthly plan to estimate completion.'}
+          </div>
+        </div>
+      `).join('')}
+
+      <div class="card fade-in">
+        <div class="card-title" style="margin-bottom:1rem">💡 Savings fund strategy</div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
+          You receive <strong>~${mxn(state.income.fundJanuary)}</strong> in January and <strong>${mxn(state.income.fundJuly)}</strong> in July.
+          At 50/50 split: <strong>${mxn(state.income.fundJanuary/2)}</strong> goes to the car, <strong>${mxn(state.income.fundJanuary/2)}</strong> goes to Brazil — twice a year.
+        </p>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-top:0.75rem">
+          That's <strong>+${mxn(state.income.fundJanuary)}</strong> per goal per year on top of monthly contributions. Brazil completes in roughly 6 months after the first fund hits.
+        </p>
+      </div>
+    `;
+
+    mountAddModal();
+  </script>
+</body>
+</html>
