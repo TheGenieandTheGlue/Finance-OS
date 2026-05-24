@@ -10,7 +10,7 @@ No accounts. No tracking. No backend. Your data stays in your browser.
 ## ✨ Features
 
 - **Biweekly budget tracking** — built for 14-day pay cycles ("catorcenas")
-- **4 pre-loaded savings goals** — emergency fund, car, Brazil trip, room upgrades
+- **4 pre-loaded savings goals** — plus fund, car, Brazil trip, room upgrades
 - **Auto-calculated "safe to spend today"** — daily variable budget that adjusts to your spending
 - **Health score** — 0–100 monthly score based on savings rate, spending discipline, and impulse buys
 - **Impulse audit** — flag impulse purchases and reflect on them weekly
