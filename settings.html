@@ -31,6 +31,26 @@
 
       <div class="card fade-in">
         <div class="card-head">
+          <div class="card-title">📅 Catorcena setup</div>
+          <div class="card-meta">Cuándo es tu día de pago</div>
+        </div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:1rem">
+          Define cualquier fecha en la que sabes que recibiste o vas a recibir pago. El sistema calcula automáticamente todas las catorcenas (cada 14 días) desde ahí.
+        </p>
+        <div style="display:flex;gap:1rem;align-items:end">
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">Fecha de pago de referencia</label>
+            <input type="date" id="payday-anchor" value="${state.income.paydayAnchor}" onchange="updatePaydayAnchor(this.value)" style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div style="font-size:13px;color:var(--ink-soft);padding-bottom:8px">
+            Catorcena actual: <strong>${currentCatorcena().start.toLocaleDateString('es-MX')} → ${currentCatorcena().end.toLocaleDateString('es-MX')}</strong><br>
+            Próximo pago: <strong>${currentCatorcena().nextPayday.toLocaleDateString('es-MX')}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
           <div class="card-title">💾 Backup &amp; restore</div>
           <div class="card-meta">${sizeKB} KB used</div>
         </div>
@@ -119,6 +139,11 @@
     function updateCatorcena(key, val) {
       state.catorcena[key] = parseFloat(val) || 0;
       saveState();
+    }
+    function updatePaydayAnchor(val) {
+      state.income.paydayAnchor = val;
+      saveState();
+      location.reload();
     }
 
     mountAddModal();

@@ -101,7 +101,7 @@
                 ${budgetRow('Variable', state.catorcena.variable, actuals.variable)}
                 ${budgetRow('YouTube', state.catorcena.youtube, actuals.youtube)}
                 ${budgetRow('Crypto', state.catorcena.crypto, actuals.crypto)}
-                ${goals.map(g => budgetRow(g.name, state.catorcena[g.id === 'g1' ? 'emergency' : g.id === 'g2' ? 'car' : g.id === 'g3' ? 'brazil' : g.id === 'g4' ? 'room' : 'emergency'] || 0, actuals[g.id])).join('')}
+                ${goals.map(g => budgetRow(g.name, g.biweeklyAmount || 0, actuals[g.id])).join('')}
               </tbody>
             </table>
           </div>

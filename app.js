@@ -12,6 +12,8 @@ const SEED = {
     biweekly: 9000,
     fundJanuary: 20000,
     fundJuly: 20000,
+    // Date of any known payday — system calculates current period from this anchor (every 14 days)
+    paydayAnchor: '2026-05-22',
   },
   planned: {
     fixed: 5319,
@@ -35,10 +37,10 @@ const SEED = {
   },
   // Goals are now fully editable; users can add/remove/change
   goals: [
-    { id: 'g1', name: '⭐ Plus fund', target: 10000, color: 'emergency', monthly: 500, category: 'Plus-Fund' },
-    { id: 'g2', name: '🚗 Car down payment', target: 55000, color: 'car', monthly: 6500, category: 'Car-Savings' },
-    { id: 'g3', name: '🇧🇷 Brazil trip', target: 27500, color: 'brazil', monthly: 650, category: 'Brazil-Savings' },
-    { id: 'g4', name: '🛏 Room upgrades', target: 6000, color: 'room', monthly: 500, category: 'Room' },
+    { id: 'g1', name: '⭐ Plus fund',         target: 10000, color: 'emergency', monthly: 500,  biweeklyAmount: 250,  category: 'Plus-Fund' },
+    { id: 'g2', name: '🚗 Car down payment',  target: 55000, color: 'car',       monthly: 6500, biweeklyAmount: 3500, category: 'Car-Savings' },
+    { id: 'g3', name: '🇧🇷 Brazil trip',       target: 27500, color: 'brazil',    monthly: 650,  biweeklyAmount: 325,  category: 'Brazil-Savings' },
+    { id: 'g4', name: '🛏 Room upgrades',     target: 6000,  color: 'room',      monthly: 500,  biweeklyAmount: 250,  category: 'Room' },
   ],
   fixedSubs: [
     { name: 'Gym', amount: 1250, category: 'Fixed-Gym' },
@@ -72,11 +74,12 @@ const SEED = {
   // Crypto — track each transaction (buy/sell/deposit/withdraw)
   crypto: {
     assets: [
-      { id: 'a1', symbol: 'BTC', name: 'Bitcoin', currentPrice: 0, autoPrice: true },
-      { id: 'a2', symbol: 'ETH', name: 'Ethereum', currentPrice: 0, autoPrice: true },
-      { id: 'a3', symbol: 'SOL', name: 'Solana', currentPrice: 0, autoPrice: true },
+      { id: 'a1', symbol: 'BTC', name: 'Bitcoin',  currentPrice: 0, currentPriceUsd: 0, autoPrice: true },
+      { id: 'a2', symbol: 'ETH', name: 'Ethereum', currentPrice: 0, currentPriceUsd: 0, autoPrice: true },
+      { id: 'a3', symbol: 'SOL', name: 'Solana',   currentPrice: 0, currentPriceUsd: 0, autoPrice: true },
     ],
     movements: [], // { id, date, type: 'deposit'|'withdraw'|'buy'|'sell', asset?, amountMXN, qty?, note }
+    usdMxnRate: 17, // fallback, updated via API
     lastPriceUpdate: null,
   },
   reviews: [],
@@ -101,13 +104,28 @@ function loadState() {
       if (Array.isArray(s.crypto)) {
         s.crypto = { assets: s.crypto.map((c, i) => ({ id: 'a'+(i+1), symbol: c.asset, name: c.asset, currentPrice: c.current || 0, autoPrice: true })), movements: [], lastPriceUpdate: null };
       }
-      if (s.goals && s.goals.length > 0 && !s.goals[0].category) {
-        s.goals = SEED.goals;
+      if (s.goals && s.goals.length > 0) {
+        if (!s.goals[0].category) {
+          s.goals = SEED.goals;
+        }
+        // Migrate: ensure every goal has biweeklyAmount
+        s.goals.forEach(g => {
+          if (g.biweeklyAmount === undefined || g.biweeklyAmount === null || isNaN(g.biweeklyAmount)) {
+            g.biweeklyAmount = Math.round((g.monthly || 0) / 2);
+          }
+        });
       }
-      // Ensure pipeline object exists for all channels
+      // Ensure income.paydayAnchor exists
+      if (!s.income.paydayAnchor) {
+        s.income.paydayAnchor = SEED.income.paydayAnchor;
+      }
+      // Ensure pipeline object exists for all channels + fix missing revenue
       if (s.youtube && s.youtube.channels) {
         s.youtube.channels.forEach(c => {
           if (!s.youtube.pipeline[c.id]) s.youtube.pipeline[c.id] = { ideas: 0, progress: 0, done: 0 };
+          if (typeof c.revenue !== 'number' || isNaN(c.revenue)) c.revenue = 0;
+          if (typeof c.subs !== 'number' || isNaN(c.subs)) c.subs = 0;
+          if (typeof c.monthlyGoal !== 'number' || isNaN(c.monthlyGoal)) c.monthlyGoal = 100;
         });
       }
       return s;
@@ -149,24 +167,38 @@ function currentMonth() {
 
 function currentCatorcena() {
   const today = new Date();
-  const day = today.getDate();
-  const month = today.getMonth();
-  const year = today.getFullYear();
-  let start, end;
-  if (day < 15) {
-    start = new Date(year, month, 1);
-    end = new Date(year, month, 14);
-  } else {
-    start = new Date(year, month, 15);
-    end = new Date(year, month + 1, 0);
-  }
+  today.setHours(0, 0, 0, 0);
+
+  // Anchor date from settings
+  const anchorStr = (state.income && state.income.paydayAnchor) || '2026-05-22';
+  const anchor = new Date(anchorStr + 'T00:00:00');
+
+  // How many days from anchor to today
+  const diffMs = today - anchor;
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  // Which catorcena number we're in (can be negative if today < anchor)
+  const catNum = Math.floor(diffDays / 14);
+
+  // Start = anchor + (catNum * 14 days). End = start + 13 days.
+  const start = new Date(anchor);
+  start.setDate(anchor.getDate() + (catNum * 14));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 13);
   end.setHours(23, 59, 59);
+
+  const todayEod = new Date(today);
+  todayEod.setHours(23, 59, 59);
+
+  const daysLeft = Math.max(0, Math.ceil((end - todayEod) / 86400000) + 1);
+  const daysElapsed = Math.max(1, Math.floor((todayEod - start) / 86400000) + 1);
+
   return {
-    start,
-    end,
-    daysLeft: Math.max(0, Math.ceil((end - today) / 86400000)),
-    daysElapsed: Math.max(1, Math.ceil((today - start) / 86400000)),
-    totalDays: Math.ceil((end - start) / 86400000),
+    start, end,
+    daysLeft,
+    daysElapsed,
+    totalDays: 14,
+    nextPayday: new Date(end.getTime() + 86400000), // day after end
   };
 }
 
@@ -411,18 +443,26 @@ async function fetchCryptoPrices() {
 
   const ids = assetsToUpdate.map(a => COINGECKO_IDS[a.symbol]).join(',');
   try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=mxn`);
+    // Get both MXN and USD prices in one call
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=mxn,usd`);
     if (!res.ok) throw new Error('CoinGecko returned ' + res.status);
     const data = await res.json();
     let updated = 0;
+    let usdMxnRate = null;
     assetsToUpdate.forEach(a => {
       const cgId = COINGECKO_IDS[a.symbol];
-      if (data[cgId] && data[cgId].mxn) {
+      if (data[cgId]) {
         const asset = state.crypto.assets.find(x => x.id === a.id);
-        asset.currentPrice = data[cgId].mxn;
+        if (data[cgId].mxn) asset.currentPrice = data[cgId].mxn;
+        if (data[cgId].usd) asset.currentPriceUsd = data[cgId].usd;
+        // Derive USD/MXN exchange rate
+        if (data[cgId].mxn && data[cgId].usd && data[cgId].usd > 0) {
+          usdMxnRate = data[cgId].mxn / data[cgId].usd;
+        }
         updated++;
       }
     });
+    if (usdMxnRate) state.crypto.usdMxnRate = usdMxnRate;
     state.crypto.lastPriceUpdate = new Date().toISOString();
     saveState();
     return { updated, errors: 0 };
@@ -451,9 +491,6 @@ function renderSidebar(activePage) {
         <a href="youtube.html"      class="nav-item ${activePage==='yt'?'active':''}"><span class="ico">▶</span> YouTube</a>
         <a href="crypto.html"       class="nav-item ${activePage==='cr'?'active':''}"><span class="ico">◆</span> Crypto</a>
         <a href="goals.html"        class="nav-item ${activePage==='goals'?'active':''}"><span class="ico">◉</span> Savings goals</a>
-
-        <div class="nav-section">Reflect</div>
-        <a href="review.html"       class="nav-item ${activePage==='review'?'active':''}"><span class="ico">✎</span> Weekly review</a>
 
         <div class="nav-section">System</div>
         <a href="settings.html"     class="nav-item ${activePage==='settings'?'active':''}"><span class="ico">⚙</span> Settings &amp; data</a>
@@ -575,7 +612,7 @@ function runCatorcenaSetup() {
     { name: 'Catorcena paycheck', amount: state.income.biweekly, category: 'Income-Salary', type: 'Income' },
     ...state.goals.map(g => ({
       name: g.name + ' transfer',
-      amount: state.catorcena[g.id === 'g1' ? 'emergency' : g.id === 'g2' ? 'car' : g.id === 'g3' ? 'brazil' : g.id === 'g4' ? 'room' : 0] || g.monthly / 2,
+      amount: g.biweeklyAmount || 0,
       category: g.category,
       type: 'Transfer'
     })).filter(t => t.amount > 0),

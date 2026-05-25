@@ -52,12 +52,16 @@
             <div class="value small">${mxn(totalTarget - totalCurrent)}</div>
           </div>
           <div class="stat">
-            <div class="label">Monthly plan</div>
-            <div class="value small">${mxn(goals.reduce((s, g) => s + g.monthly, 0))}</div>
+            <div class="label">Biweekly total</div>
+            <div class="value small">${mxn(goals.reduce((s, g) => s + (g.biweeklyAmount || 0), 0))}</div>
           </div>
         </div>
 
-        ${goals.map((g, idx) => `
+        ${goals.map((g, idx) => {
+          const remaining = g.target - g.current;
+          const catsLeft = g.biweeklyAmount > 0 ? Math.ceil(remaining / g.biweeklyAmount) : 0;
+          const monthsLeft = g.monthly > 0 ? Math.ceil(remaining / g.monthly) : 0;
+          return `
           <div class="card fade-in">
             <div class="card-head">
               <div style="flex:1">
@@ -74,35 +78,39 @@
             <div class="bar" style="height:10px;margin-bottom:14px">
               <div class="bar-fill ${g.color}" style="width:${g.pct}%"></div>
             </div>
-            <div style="font-size:12px;color:var(--ink-mute);margin-bottom:14px">${g.pct}% complete</div>
+            <div style="font-size:12px;color:var(--ink-mute);margin-bottom:14px">${g.pct}% complete · ${mxn(g.current)} de ${mxn(g.target)}</div>
 
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;font-size:13px">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;font-size:13px;margin-bottom:1rem">
               <div>
-                <div class="card-meta" style="margin-bottom:4px">Target (MXN)</div>
-                <input class="inline-edit" type="number" value="${g.target}" onchange="updateGoalField('${g.id}', 'target', this.value)" style="font-family:var(--font-display);font-size:22px;font-weight:500;width:120px;text-align:left">
-              </div>
-              <div>
-                <div class="card-meta" style="margin-bottom:4px">Current</div>
-                <div style="font-family:var(--font-display);font-size:22px;font-weight:500;color:var(--good)">${mxn(g.current)}</div>
+                <div class="card-meta" style="margin-bottom:4px">Target</div>
+                <input class="inline-edit" type="number" value="${g.target}" onchange="updateGoalField('${g.id}', 'target', this.value)" style="font-family:var(--font-display);font-size:20px;font-weight:500;width:100%;text-align:left">
               </div>
               <div>
                 <div class="card-meta" style="margin-bottom:4px">Remaining</div>
-                <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target - g.current)}</div>
+                <div style="font-family:var(--font-display);font-size:20px;font-weight:500">${mxn(remaining)}</div>
               </div>
               <div>
-                <div class="card-meta" style="margin-bottom:4px">Monthly plan</div>
-                <input class="inline-edit" type="number" value="${g.monthly}" onchange="updateGoalField('${g.id}', 'monthly', this.value)" style="font-family:var(--font-display);font-size:22px;font-weight:500;width:120px;text-align:left">
+                <div class="card-meta" style="margin-bottom:4px">Per catorcena</div>
+                <input class="inline-edit" type="number" value="${g.biweeklyAmount || 0}" onchange="updateGoalField('${g.id}', 'biweeklyAmount', this.value)" style="font-family:var(--font-display);font-size:20px;font-weight:500;width:100%;text-align:left">
+              </div>
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Per month</div>
+                <input class="inline-edit" type="number" value="${g.monthly}" onchange="updateGoalField('${g.id}', 'monthly', this.value)" style="font-family:var(--font-display);font-size:20px;font-weight:500;width:100%;text-align:left">
+              </div>
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Catorcenas faltantes</div>
+                <div style="font-family:var(--font-display);font-size:20px;font-weight:500;color:var(--good)">${catsLeft || '∞'}</div>
               </div>
             </div>
 
-            <div class="insight" style="margin-top:1.5rem">
-              <strong>${g.monthly > 0 ? `~${Math.ceil((g.target - g.current) / g.monthly)} months` : '—'}</strong>
-              ${g.monthly > 0 ? `at ${mxn(g.monthly)}/month — savings fund injections (Jan/Jul) accelerate this.` : 'set a monthly plan to estimate completion.'}
+            <div class="insight">
+              <strong>Sin ingresos extras:</strong> ${catsLeft > 0 ? `te faltan <strong>${catsLeft} catorcenas</strong> (≈ ${monthsLeft} meses)` : 'asigna un monto por catorcena para calcular'} a ${mxn(g.biweeklyAmount || 0)}/catorcena.
+              ${catsLeft > 0 ? `<br>📅 Si depositas regularmente, llegas alrededor de <strong>${estimateFinishDate(catsLeft)}</strong>.` : ''}
             </div>
 
             <div class="card-meta" style="margin-top:1rem">Category linked: <code style="background:var(--bg-elev);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:11px">${g.category}</code></div>
           </div>
-        `).join('')}
+        `}).join('')}
 
         ${goals.length === 0 ? `
           <div class="card empty">
@@ -113,8 +121,7 @@
         <div class="card fade-in">
           <div class="card-title" style="margin-bottom:1rem">💡 Savings fund strategy</div>
           <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
-            You receive ~${mxn(state.income.fundJanuary)} in January and ${mxn(state.income.fundJuly)} in July.
-            How you split these is up to you per round — drop them into the goals where you need the boost most.
+            Cuando recibas el fondo de Enero o Julio (~${mxn(state.income.fundJanuary)}), decide qué proporción asignar a cada meta. Considera enviarlo a la meta con menos catorcenas faltantes para sacarla rápido.
           </p>
         </div>
       `;
@@ -122,10 +129,17 @@
       mountAddModal();
     }
 
+    function estimateFinishDate(catorcenasLeft) {
+      const cat = currentCatorcena();
+      const finishMs = cat.end.getTime() + (catorcenasLeft - 1) * 14 * 86400000;
+      const d = new Date(finishMs);
+      return d.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    }
+
     function updateGoalField(id, field, value) {
       const g = state.goals.find(x => x.id === id);
       if (!g) return;
-      if (field === 'target' || field === 'monthly') {
+      if (field === 'target' || field === 'monthly' || field === 'biweeklyAmount') {
         g[field] = parseFloat(value) || 0;
       } else {
         g[field] = value;
@@ -135,16 +149,17 @@
     }
 
     function addGoal() {
-      const name = prompt('Goal name (with emoji, e.g., "✈️ Tokyo trip"):');
+      const name = prompt('Goal name (con emoji, ej: "✈️ Tokyo trip"):');
       if (!name) return;
       const target = parseFloat(prompt('Target amount (MXN):') || '0');
       if (!target || target <= 0) { alert('Invalid target'); return; }
-      const monthly = parseFloat(prompt('Monthly contribution (MXN):') || '0');
-      const category = (prompt('Category code (no spaces, e.g., Tokyo-Trip):') || 'Custom-' + Date.now()).replace(/\s+/g, '-');
+      const biweeklyAmount = parseFloat(prompt('Cuánto destinarás por catorcena (MXN)?') || '0');
+      const monthly = biweeklyAmount * 2;
+      const category = (prompt('Category code (sin espacios, ej: Tokyo-Trip):') || 'Custom-' + Date.now()).replace(/\s+/g, '-');
       const color = ['emergency', 'car', 'brazil', 'room'][state.goals.length % 4];
       state.goals.push({
         id: 'g' + Date.now(),
-        name, target, monthly, category, color,
+        name, target, monthly, biweeklyAmount, category, color,
       });
       saveState();
       render();
@@ -153,7 +168,7 @@
     function deleteGoal(id) {
       const g = state.goals.find(x => x.id === id);
       if (!g) return;
-      if (!confirm('Delete "' + g.name + '"?\n\nTransactions linked to category "' + g.category + '" stay in your records, but the goal disappears.')) return;
+      if (!confirm('Delete "' + g.name + '"?\n\nLas transacciones de la categoría "' + g.category + '" se quedan registradas, pero el goal desaparece.')) return;
       state.goals = state.goals.filter(x => x.id !== id);
       saveState();
       render();

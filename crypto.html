@@ -20,184 +20,238 @@
 
     let updating = false;
 
+    function getSimpleStats() {
+      const usdMxnRate = state.crypto.usdMxnRate || 17;
+      let totalCurrentMXN = 0;
+      let totalInvestedMXN = 0;
+
+      const assets = state.crypto.assets.map(a => {
+        const qty = a.holdings || 0;
+        const invested = a.investedMXN || 0;
+        const currentValueMXN = qty * a.currentPrice;
+        const pl = currentValueMXN - invested;
+        const plPct = invested > 0 ? Math.round((pl / invested) * 100) : 0;
+        totalCurrentMXN += currentValueMXN;
+        totalInvestedMXN += invested;
+        return { ...a, qty, invested, currentValueMXN, pl, plPct };
+      });
+
+      const totalPL = totalCurrentMXN - totalInvestedMXN;
+      const totalPLPct = totalInvestedMXN > 0 ? Math.round((totalPL / totalInvestedMXN) * 100) : 0;
+
+      return { assets, totalCurrentMXN, totalInvestedMXN, totalPL, totalPLPct, usdMxnRate };
+    }
+
     async function render() {
-      const c = getCryptoStats();
+      const s = getSimpleStats();
       const lastUpdate = state.crypto.lastPriceUpdate
         ? 'Last update: ' + new Date(state.crypto.lastPriceUpdate).toLocaleString('es-MX')
         : 'Never updated';
 
-      const returnColor = c.totalReturn >= 0 ? 'var(--good)' : 'var(--bad)';
-      const returnSign = c.totalReturn >= 0 ? '+' : '';
+      const returnColor = s.totalPL >= 0 ? 'var(--good)' : 'var(--bad)';
+      const returnSign = s.totalPL >= 0 ? '+' : '';
 
       document.getElementById('content').innerHTML = `
         <div class="page-head fade-in">
           <div>
             <div class="eyebrow">📈 Growth / Crypto</div>
             <h1 class="page-title">Your <em>portfolio</em></h1>
-            <div class="page-sub">${lastUpdate}</div>
+            <div class="page-sub">${lastUpdate} · USD/MXN: ${s.usdMxnRate.toFixed(2)}</div>
           </div>
           <div>
             <button class="btn primary" onclick="refreshPrices()" id="refresh-btn">${updating ? '⏳ Updating...' : '↻ Update prices'}</button>
           </div>
         </div>
 
-        <div class="card fade-in" style="background:${c.totalReturn >= 0 ? '#F4F8F2' : '#FBEFEB'};border-color:${returnColor}">
+        <div class="card fade-in" style="background:${s.totalPL >= 0 ? '#F4F8F2' : '#FBEFEB'};border-color:${returnColor}">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:center">
             <div>
-              <div class="eyebrow">Net return (what really matters)</div>
-              <div style="font-family:var(--font-display);font-size:42px;font-weight:500;letter-spacing:-0.02em;color:${returnColor};margin-top:6px">${returnSign}${mxn(c.totalReturn)}</div>
-              <div style="font-size:14px;color:${returnColor};margin-top:4px">${returnSign}${c.totalReturnPct}% on ${mxn(c.totalDeposited)} deposited</div>
+              <div class="eyebrow">Profit / Loss (P&amp;L)</div>
+              <div style="font-family:var(--font-display);font-size:42px;font-weight:500;letter-spacing:-0.02em;color:${returnColor};margin-top:6px">${returnSign}${mxn(s.totalPL)}</div>
+              <div style="font-size:14px;color:${returnColor};margin-top:4px">${returnSign}${s.totalPLPct}% sobre ${mxn(s.totalInvestedMXN)} invertidos</div>
             </div>
             <div style="font-size:13px;color:var(--ink-soft);line-height:1.8">
-              <strong>How this is calculated:</strong><br>
-              You've put in: <strong>${mxn(c.totalDeposited)}</strong><br>
-              You've taken out: <strong>${mxn(c.totalWithdrawn)}</strong><br>
-              Current portfolio value: <strong>${mxn(c.totalCurrentValue)}</strong><br>
-              ${c.totalReturn >= 0
-                ? `Net result: <strong style="color:var(--good)">if you sold everything now, you'd be ${mxn(c.totalReturn)} ahead.</strong>`
-                : `Net result: <strong style="color:var(--bad)">if you sold everything now, you'd be ${mxn(Math.abs(c.totalReturn))} behind.</strong>`
-              }
+              <strong>Cuánto tengo en total:</strong><br>
+              Valor actual: <strong style="font-size:18px;color:var(--ink)">${mxn(s.totalCurrentMXN)} MXN</strong><br>
+              ${s.totalPL >= 0
+                ? `<span style="color:var(--good)"><strong>Si vendieras todo ahora, ganarías ${mxn(s.totalPL)}.</strong></span>`
+                : `<span style="color:var(--bad)"><strong>Si vendieras todo ahora, perderías ${mxn(Math.abs(s.totalPL))}.</strong></span>`}
             </div>
-          </div>
-        </div>
-
-        <div class="crypto-summary fade-in">
-          <div class="stat">
-            <div class="label">Deposited (lifetime)</div>
-            <div class="value small">${mxn(c.totalDeposited)}</div>
-            <div class="delta">cash sent to exchange</div>
-          </div>
-          <div class="stat">
-            <div class="label">Withdrawn</div>
-            <div class="value small">${mxn(c.totalWithdrawn)}</div>
-            <div class="delta">${c.totalWithdrawn > 0 ? 'cashed out so far' : '—'}</div>
-          </div>
-          <div class="stat">
-            <div class="label">Portfolio value now</div>
-            <div class="value small">${mxn(c.totalCurrentValue)}</div>
-            <div class="delta">${c.totalInvestedNow > 0 ? `cost basis ${mxn(c.totalInvestedNow)}` : ''}</div>
-          </div>
-          <div class="stat">
-            <div class="label">Realized P&L</div>
-            <div class="value small" style="color:${c.totalRealizedPL >= 0 ? 'var(--good)' : 'var(--bad)'}">${c.totalRealizedPL >= 0 ? '+' : ''}${mxn(c.totalRealizedPL)}</div>
-            <div class="delta">from sales</div>
           </div>
         </div>
 
         <div class="card fade-in">
           <div class="card-head">
-            <div class="card-title">Holdings by asset</div>
-            <div class="card-meta">Current value &amp; unrealized P&amp;L</div>
+            <div class="card-title">My holdings</div>
+            <div class="card-meta">Edit holdings &amp; cost basis directly</div>
           </div>
-          ${c.assets.length === 0 ? `
+          ${s.assets.length === 0 ? `
             <div class="empty"><em>No assets tracked.</em><br>Add an asset below.</div>
           ` : `
             <table class="budget-table">
               <thead>
                 <tr>
                   <th>Asset</th>
-                  <th class="num">Holding</th>
-                  <th class="num">Avg buy</th>
-                  <th class="num">Current</th>
-                  <th class="num">Value</th>
+                  <th class="num">Holdings</th>
+                  <th class="num">Price (USD)</th>
+                  <th class="num">Price (MXN)</th>
+                  <th class="num">Value (MXN)</th>
+                  <th class="num">Invested (MXN)</th>
                   <th class="num">P&amp;L</th>
                 </tr>
               </thead>
               <tbody>
-                ${c.assets.map(a => `
+                ${s.assets.map(a => `
                   <tr>
                     <td class="cat" style="font-weight:500">
                       ${a.symbol}
                       ${a.autoPrice && COINGECKO_IDS[a.symbol] ? '<span style="font-size:10px;color:var(--ink-mute);margin-left:6px">⟳ auto</span>' : ''}
                       <button onclick="deleteAsset('${a.id}')" style="background:none;border:none;color:var(--ink-faint);font-size:12px;cursor:pointer;margin-left:8px" title="Remove asset">×</button>
                     </td>
-                    <td class="num">${a.qty.toFixed(6)}</td>
-                    <td class="num">${a.avgCost > 0 ? mxn(a.avgCost) : '—'}</td>
                     <td class="num">
-                      ${a.autoPrice
-                        ? mxn(a.currentPrice)
-                        : `<input class="inline-edit" type="number" step="0.01" value="${a.currentPrice}" onchange="updatePrice('${a.id}', this.value)">`}
+                      <input class="inline-edit" type="number" step="0.0000001" value="${a.qty}" onchange="updateHolding('${a.id}', this.value)" placeholder="0.0">
                     </td>
-                    <td class="num">${mxn(a.currentValue)}</td>
-                    <td class="num" style="color:${a.unrealizedPL >= 0 ? 'var(--good)' : 'var(--bad)'}">
-                      ${a.unrealizedPL >= 0 ? '+' : ''}${mxn(a.unrealizedPL)}
-                      <br><span style="font-size:10px">${a.unrealizedPct >= 0 ? '+' : ''}${a.unrealizedPct}%</span>
+                    <td class="num">${a.currentPriceUsd > 0 ? '$' + a.currentPriceUsd.toLocaleString('en-US', {maximumFractionDigits: 2}) : '—'}</td>
+                    <td class="num">${a.autoPrice
+                      ? mxn(a.currentPrice)
+                      : `<input class="inline-edit" type="number" step="0.01" value="${a.currentPrice}" onchange="updatePrice('${a.id}', this.value)">`}</td>
+                    <td class="num" style="font-weight:500">${mxn(a.currentValueMXN)}</td>
+                    <td class="num">
+                      <input class="inline-edit" type="number" step="1" value="${a.invested}" onchange="updateInvested('${a.id}', this.value)" placeholder="0">
+                    </td>
+                    <td class="num" style="color:${a.pl >= 0 ? 'var(--good)' : 'var(--bad)'}">
+                      ${a.pl >= 0 ? '+' : ''}${mxn(a.pl)}
+                      <br><span style="font-size:10px">${a.plPct >= 0 ? '+' : ''}${a.plPct}%</span>
                     </td>
                   </tr>
                 `).join('')}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td class="num">—</td>
+                  <td class="num">—</td>
+                  <td class="num">—</td>
+                  <td class="num">${mxn(s.totalCurrentMXN)}</td>
+                  <td class="num">${mxn(s.totalInvestedMXN)}</td>
+                  <td class="num" style="color:${s.totalPL >= 0 ? 'var(--good)' : 'var(--bad)'}">${s.totalPL >= 0 ? '+' : ''}${mxn(s.totalPL)}</td>
+                </tr>
+              </tfoot>
             </table>
           `}
-        </div>
 
-        <div class="card fade-in">
-          <div class="card-head">
-            <div class="card-title">Log movement</div>
-            <div class="card-meta">Track every $ in/out</div>
-          </div>
-          <div class="btn-row" style="margin:0">
-            <button class="btn" onclick="logMovement('deposit')">💵 Depositar al exchange</button>
-            <button class="btn" onclick="logMovement('buy')">🟢 Comprar crypto</button>
-            <button class="btn" onclick="logMovement('sell')">🔴 Vender crypto</button>
-            <button class="btn" onclick="logMovement('withdraw')">💸 Retirar del exchange</button>
-            <button class="btn" onclick="addAsset()">+ Add asset</button>
-          </div>
           <div class="smart-insight" style="margin-top:1rem">
-            💡 <strong>Workflow correcto:</strong><br>
-            1. Cuando metes dinero al exchange → "Depositar"<br>
-            2. Cuando compras BTC con ese dinero → "Comprar crypto" (descuenta del depositado)<br>
-            3. Cuando vendes BTC → "Vender" (te suma a saldo de exchange)<br>
-            4. Cuando sacas dinero a tu banco → "Retirar"<br>
-            Esto te da el <strong>Net Return real</strong> arriba.
+            💡 <strong>Cómo usar:</strong> Pon en "Holdings" cuántas unidades tienes de cada crypto (ej: 0.0042 BTC). En "Invested" pon el total de MXN que has metido a ese activo. La app calcula tu valor actual y P&amp;L en vivo.
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" onclick="addAsset()">+ Add asset</button>
+            <button class="btn" onclick="refreshPrices()">↻ Update prices</button>
           </div>
         </div>
 
-        ${state.crypto.movements.length > 0 ? `
-          <div class="card fade-in">
-            <div class="card-head">
-              <div class="card-title">Movement history</div>
-              <div class="card-meta">${state.crypto.movements.length} entries</div>
-            </div>
-            ${state.crypto.movements.slice(0, 20).map(m => {
-              const a = m.assetId ? state.crypto.assets.find(x => x.id === m.assetId) : null;
-              return `
-                <div class="cm-row">
-                  <span style="color:var(--ink-mute);font-size:11px">${formatDate(m.date)}</span>
-                  <span class="type type-${m.type}">${m.type}</span>
-                  <span>${a ? a.symbol + ' · ' : ''}${m.note || ''}${m.qty ? ' · ' + m.qty + ' units' : ''}</span>
-                  <span style="font-family:var(--font-mono);font-size:13px">${mxn(m.amountMXN)}</span>
-                  <button onclick="deleteMovement(${m.id})" style="background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer">×</button>
-                </div>
-              `;
-            }).join('')}
-            ${state.crypto.movements.length > 20 ? `<div class="empty" style="padding:1rem">+ ${state.crypto.movements.length - 20} more...</div>` : ''}
-          </div>
-        ` : ''}
-
-        <div class="card fade-in">
-          <div class="card-title" style="margin-bottom:1rem">💡 Smart allocation (informational only)</div>
-          <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
-            Your savings goals total ${(() => {
-              const g = getGoalProgress();
-              return mxn(g.reduce((s, x) => s + x.current, 0));
-            })()} currently parked. Some of it could potentially work harder, but be careful:
-          </p>
-          <table class="budget-table" style="margin-top:0.75rem">
-            <thead><tr><th>If goal is...</th><th class="num">Suggested crypto %</th><th>Reason</th></tr></thead>
-            <tbody>
-              <tr><td class="cat">> 12 months away</td><td class="num"><strong>10–20%</strong></td><td class="cat">Long horizon absorbs volatility</td></tr>
-              <tr><td class="cat">6–12 months away</td><td class="num"><strong>5–10%</strong></td><td class="cat">Mid horizon, limit downside</td></tr>
-              <tr><td class="cat">3–6 months away</td><td class="num"><strong>0–5%</strong></td><td class="cat">Stay mostly liquid</td></tr>
-              <tr><td class="cat">< 3 months away</td><td class="num"><strong>0%</strong></td><td class="cat">Never gamble near-term money</td></tr>
-            </tbody>
-          </table>
-          <div class="smart-insight" style="margin-top:1rem">
-            ⚠️ <strong>Not financial advice.</strong> Crypto can drop 30–50% in weeks. Only consider this if you can stomach seeing your car fund temporarily worth less. Many people sell at the bottom and lose for real. If unsure, stay 100% liquid in pesos.
-          </div>
-        </div>
+        ${getSmartAllocation()}
       `;
 
       mountAddModal();
+    }
+
+    function getSmartAllocation() {
+      const goals = getGoalProgress();
+      const s = getSimpleStats();
+
+      // Calculate months remaining per goal (NO extra income assumed)
+      const goalAnalysis = goals.map(g => {
+        const remainingMXN = g.target - g.current;
+        const monthsAtCurrentPace = g.monthly > 0 ? remainingMXN / g.monthly : Infinity;
+        const catorcenasRemaining = g.biweeklyAmount > 0 ? Math.ceil(remainingMXN / g.biweeklyAmount) : Infinity;
+
+        // Risk profile based on time horizon
+        let risk, riskColor, suggestedCryptoPct, reason;
+        if (monthsAtCurrentPace > 12) {
+          risk = 'Lejano';
+          riskColor = 'var(--good)';
+          suggestedCryptoPct = '10–20%';
+          reason = 'Horizonte largo: la volatilidad se absorbe en el tiempo.';
+        } else if (monthsAtCurrentPace > 6) {
+          risk = 'Medio';
+          riskColor = 'var(--warn)';
+          suggestedCryptoPct = '5–10%';
+          reason = 'Horizonte medio: limita el downside.';
+        } else if (monthsAtCurrentPace > 3) {
+          risk = 'Cercano';
+          riskColor = 'var(--warn)';
+          suggestedCryptoPct = '0–5%';
+          reason = 'Casi llegando: mejor mantener líquido.';
+        } else {
+          risk = 'Inminente';
+          riskColor = 'var(--bad)';
+          suggestedCryptoPct = '0%';
+          reason = 'Muy pronto: no arriesgues dinero que necesitas en menos de 3 meses.';
+        }
+
+        return { ...g, remainingMXN, monthsAtCurrentPace, catorcenasRemaining, risk, riskColor, suggestedCryptoPct, reason };
+      });
+
+      const totalParked = goals.reduce((sum, g) => sum + g.current, 0);
+
+      // Personalized message based on crypto P&L
+      let cryptoMoodMessage = '';
+      if (s.totalInvestedMXN === 0) {
+        cryptoMoodMessage = `Aún no tienes posición en crypto. Si decides empezar, considera asignar primero solo de goals con horizonte mayor a 12 meses.`;
+      } else if (s.totalPLPct > 20) {
+        cryptoMoodMessage = `🔥 <strong>Tu crypto está +${s.totalPLPct}%.</strong> Buen momento para considerar tomar ganancias parciales — vende un % y mándalo a la meta más cercana (${goalAnalysis.find(g => g.monthsAtCurrentPace < Infinity)?.name || 'tu meta principal'}).`;
+      } else if (s.totalPLPct > 0) {
+        cryptoMoodMessage = `📈 <strong>Estás +${s.totalPLPct}%.</strong> Ganancia modesta. Si tienes meta a más de 12 meses con dinero parado, podrías reasignar algo (5-10%) sin mucho riesgo.`;
+      } else if (s.totalPLPct > -15) {
+        cryptoMoodMessage = `📉 <strong>Estás ${s.totalPLPct}%.</strong> Caída moderada. NO vendas en pánico. Si crees en el activo, esto es lo normal — espera. NO metas más dinero de metas cercanas.`;
+      } else {
+        cryptoMoodMessage = `🚨 <strong>Caída fuerte (${s.totalPLPct}%).</strong> Esto es exactamente cuando la gente vende y pierde de verdad. Si tu tesis original sigue válida, mantén. NO metas dinero de Plus Fund o Brasil ahora.`;
+      }
+
+      return `
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">💡 Smart allocation</div>
+            <div class="card-meta">Calculado con tus metas reales</div>
+          </div>
+
+          <div class="insight" style="margin-bottom:1rem">${cryptoMoodMessage}</div>
+
+          <p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:1rem">
+            Tienes <strong>${mxn(totalParked)}</strong> guardado entre tus metas. Esto es lo que sugiere cada una:
+          </p>
+
+          <table class="budget-table">
+            <thead>
+              <tr>
+                <th>Meta</th>
+                <th class="num">Falta</th>
+                <th class="num">Meses</th>
+                <th>Horizonte</th>
+                <th class="num">% en crypto OK</th>
+                <th>Razón</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${goalAnalysis.map(g => `
+                <tr>
+                  <td class="cat">${g.name}</td>
+                  <td class="num">${mxn(g.remainingMXN)}</td>
+                  <td class="num">${g.monthsAtCurrentPace === Infinity ? '∞' : Math.ceil(g.monthsAtCurrentPace)}</td>
+                  <td><span style="color:${g.riskColor};font-weight:500">${g.risk}</span></td>
+                  <td class="num"><strong>${g.suggestedCryptoPct}</strong></td>
+                  <td class="cat" style="font-size:12px">${g.reason}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="smart-insight" style="margin-top:1rem">
+            ⚠️ <strong>No es asesoría financiera.</strong> Estos números son guías generales. Crypto puede caer 30-50% rápido. Si te quita el sueño verlo bajar, mejor quédate en pesos.
+          </div>
+        </div>
+      `;
     }
 
     async function refreshPrices() {
@@ -221,6 +275,24 @@
       }
     }
 
+    function updateHolding(id, val) {
+      const a = state.crypto.assets.find(x => x.id === id);
+      if (a) {
+        a.holdings = parseFloat(val) || 0;
+        saveState();
+        render();
+      }
+    }
+
+    function updateInvested(id, val) {
+      const a = state.crypto.assets.find(x => x.id === id);
+      if (a) {
+        a.investedMXN = parseFloat(val) || 0;
+        saveState();
+        render();
+      }
+    }
+
     function addAsset() {
       const symbol = prompt('Asset symbol (e.g., ADA, DOGE):');
       if (!symbol) return;
@@ -232,7 +304,10 @@
         symbol: sym,
         name,
         currentPrice: 0,
+        currentPriceUsd: 0,
         autoPrice,
+        holdings: 0,
+        investedMXN: 0,
       });
       saveState();
       if (autoPrice) refreshPrices();
@@ -242,57 +317,8 @@
     function deleteAsset(id) {
       const a = state.crypto.assets.find(x => x.id === id);
       if (!a) return;
-      if (!confirm('Remove ' + a.symbol + '? Movements stay in history but this asset disappears from holdings.')) return;
+      if (!confirm('Remove ' + a.symbol + '?')) return;
       state.crypto.assets = state.crypto.assets.filter(x => x.id !== id);
-      saveState();
-      render();
-    }
-
-    function logMovement(type) {
-      const labels = {
-        deposit: 'Cuánto depositaste al exchange (MXN)?',
-        withdraw: 'Cuánto retiraste del exchange (MXN)?',
-        buy: 'Cuánto gastaste en la compra (MXN)?',
-        sell: 'Cuánto recibiste por la venta (MXN)?',
-      };
-      const amount = prompt(labels[type]);
-      if (!amount) return;
-      const amt = parseFloat(amount);
-      if (isNaN(amt) || amt <= 0) { alert('Invalid number'); return; }
-
-      let assetId = null, qty = null;
-      if (type === 'buy' || type === 'sell') {
-        if (state.crypto.assets.length === 0) { alert('Agrega un asset primero'); return; }
-        const symbols = state.crypto.assets.map(a => a.symbol).join(', ');
-        const sym = prompt('Qué asset? (' + symbols + ')');
-        if (!sym) return;
-        const a = state.crypto.assets.find(x => x.symbol.toUpperCase() === sym.toUpperCase());
-        if (!a) { alert('Asset no encontrado'); return; }
-        assetId = a.id;
-        const q = prompt('Cuántas unidades? (e.g., 0.0025)');
-        if (!q) return;
-        qty = parseFloat(q);
-        if (isNaN(qty) || qty <= 0) { alert('Invalid quantity'); return; }
-      }
-
-      const note = prompt('Nota (opcional):') || '';
-
-      state.crypto.movements.unshift({
-        id: Date.now(),
-        date: todayISO(),
-        type,
-        assetId,
-        qty,
-        amountMXN: amt,
-        note,
-      });
-      saveState();
-      render();
-    }
-
-    function deleteMovement(id) {
-      if (!confirm('Eliminar este movimiento? Recalcula todo el P&L.')) return;
-      state.crypto.movements = state.crypto.movements.filter(m => m.id !== id);
       saveState();
       render();
     }

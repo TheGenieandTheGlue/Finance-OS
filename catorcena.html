@@ -70,18 +70,15 @@
           <tbody>
             ${row('Fixed expenses', state.catorcena.fixed, actuals.fixed)}
             ${row('Variable', state.catorcena.variable, actuals.variable)}
-            ${row('Car savings', state.catorcena.car, actuals.car)}
             ${row('YouTube', state.catorcena.youtube, actuals.youtube)}
             ${row('Crypto DCA', state.catorcena.crypto, actuals.crypto)}
-            ${row('Room', state.catorcena.room, actuals.room)}
-            ${row('Brazil', state.catorcena.brazil, actuals.brazil)}
-            ${row('Emergency', state.catorcena.emergency, actuals.emergency)}
+            ${state.goals.map(g => row(g.name, g.biweeklyAmount || 0, actuals[g.id] || 0)).join('')}
           </tbody>
           <tfoot>
             <tr>
               <td>Total</td>
-              <td class="num">${mxn(state.catorcena.fixed + state.catorcena.variable + state.catorcena.car + state.catorcena.youtube + state.catorcena.crypto + state.catorcena.room + state.catorcena.brazil + state.catorcena.emergency)}</td>
-              <td class="num">${mxn(actuals.fixed + actuals.variable + actuals.car + actuals.youtube + actuals.crypto + actuals.room + actuals.brazil + actuals.emergency)}</td>
+              <td class="num">${mxn(state.catorcena.fixed + state.catorcena.variable + state.catorcena.youtube + state.catorcena.crypto + state.goals.reduce((s,g) => s + (g.biweeklyAmount || 0), 0))}</td>
+              <td class="num">${mxn(actuals.fixed + actuals.variable + actuals.youtube + actuals.crypto + state.goals.reduce((s,g) => s + (actuals[g.id] || 0), 0))}</td>
               <td class="num">${mxn(state.income.biweekly - s.totalSpent)}</td>
               <td></td>
             </tr>

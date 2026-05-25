@@ -208,7 +208,7 @@
       if (isNaN(a) || a <= 0) { alert('Invalid number'); return; }
       const c = state.youtube.channels.find(x => x.id === channelId);
       if (c) {
-        c.revenue += a;
+        c.revenue = (typeof c.revenue === 'number' && !isNaN(c.revenue) ? c.revenue : 0) + a;
         // Also create an income transaction so it shows in monthly stats
         state.transactions.unshift({
           id: Date.now(),
