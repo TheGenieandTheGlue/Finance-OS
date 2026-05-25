@@ -18,86 +18,148 @@
   <script>
     document.getElementById('sidebar').outerHTML = renderSidebar('goals');
 
-    const goals = getGoalProgress();
-    const totalTarget = goals.reduce((s, g) => s + g.target, 0);
-    const totalCurrent = goals.reduce((s, g) => s + g.current, 0);
-    const overallPct = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+    function render() {
+      const goals = getGoalProgress();
+      const totalTarget = goals.reduce((s, g) => s + g.target, 0);
+      const totalCurrent = goals.reduce((s, g) => s + g.current, 0);
+      const overallPct = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
 
-    document.getElementById('content').innerHTML = `
-      <div class="page-head fade-in">
-        <div>
-          <div class="eyebrow">📈 Growth / Savings goals</div>
-          <h1 class="page-title">Your <em>goals</em></h1>
-          <div class="page-sub">${mxn(totalCurrent)} of ${mxn(totalTarget)} saved · ${overallPct}% combined</div>
-        </div>
-      </div>
+      const colors = ['emergency', 'car', 'brazil', 'room'];
 
-      <div class="stats-grid fade-in" style="margin-bottom:2rem">
-        <div class="stat">
-          <div class="label">Combined target</div>
-          <div class="value small">${mxn(totalTarget)}</div>
+      document.getElementById('content').innerHTML = `
+        <div class="page-head fade-in">
+          <div>
+            <div class="eyebrow">📈 Growth / Savings goals</div>
+            <h1 class="page-title">Your <em>goals</em></h1>
+            <div class="page-sub">${mxn(totalCurrent)} of ${mxn(totalTarget)} saved · ${overallPct}% combined</div>
+          </div>
+          <div>
+            <button class="btn primary" onclick="addGoal()">+ New goal</button>
+          </div>
         </div>
-        <div class="stat">
-          <div class="label">Saved so far</div>
-          <div class="value small" style="color:var(--good)">${mxn(totalCurrent)}</div>
-        </div>
-        <div class="stat">
-          <div class="label">Remaining</div>
-          <div class="value small">${mxn(totalTarget - totalCurrent)}</div>
-        </div>
-        <div class="stat">
-          <div class="label">Monthly plan</div>
-          <div class="value small">${mxn(goals.reduce((s, g) => s + g.monthly, 0))}</div>
-        </div>
-      </div>
 
-      ${goals.map(g => `
+        <div class="stats-grid fade-in" style="margin-bottom:2rem">
+          <div class="stat">
+            <div class="label">Combined target</div>
+            <div class="value small">${mxn(totalTarget)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Saved so far</div>
+            <div class="value small" style="color:var(--good)">${mxn(totalCurrent)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Remaining</div>
+            <div class="value small">${mxn(totalTarget - totalCurrent)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Monthly plan</div>
+            <div class="value small">${mxn(goals.reduce((s, g) => s + g.monthly, 0))}</div>
+          </div>
+        </div>
+
+        ${goals.map((g, idx) => `
+          <div class="card fade-in">
+            <div class="card-head">
+              <div style="flex:1">
+                <input class="yt-channel-name" value="${g.name}" onchange="updateGoalField('${g.id}', 'name', this.value)" style="font-size:20px;max-width:none">
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select onchange="updateGoalField('${g.id}', 'color', this.value)" style="font-size:12px;padding:6px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev)">
+                  ${colors.map(c => `<option value="${c}" ${g.color === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+                <button class="btn" onclick="deleteGoal('${g.id}')" style="color:var(--bad)">× Delete</button>
+              </div>
+            </div>
+
+            <div class="bar" style="height:10px;margin-bottom:14px">
+              <div class="bar-fill ${g.color}" style="width:${g.pct}%"></div>
+            </div>
+            <div style="font-size:12px;color:var(--ink-mute);margin-bottom:14px">${g.pct}% complete</div>
+
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;font-size:13px">
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Target (MXN)</div>
+                <input class="inline-edit" type="number" value="${g.target}" onchange="updateGoalField('${g.id}', 'target', this.value)" style="font-family:var(--font-display);font-size:22px;font-weight:500;width:120px;text-align:left">
+              </div>
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Current</div>
+                <div style="font-family:var(--font-display);font-size:22px;font-weight:500;color:var(--good)">${mxn(g.current)}</div>
+              </div>
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Remaining</div>
+                <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target - g.current)}</div>
+              </div>
+              <div>
+                <div class="card-meta" style="margin-bottom:4px">Monthly plan</div>
+                <input class="inline-edit" type="number" value="${g.monthly}" onchange="updateGoalField('${g.id}', 'monthly', this.value)" style="font-family:var(--font-display);font-size:22px;font-weight:500;width:120px;text-align:left">
+              </div>
+            </div>
+
+            <div class="insight" style="margin-top:1.5rem">
+              <strong>${g.monthly > 0 ? `~${Math.ceil((g.target - g.current) / g.monthly)} months` : '—'}</strong>
+              ${g.monthly > 0 ? `at ${mxn(g.monthly)}/month — savings fund injections (Jan/Jul) accelerate this.` : 'set a monthly plan to estimate completion.'}
+            </div>
+
+            <div class="card-meta" style="margin-top:1rem">Category linked: <code style="background:var(--bg-elev);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:11px">${g.category}</code></div>
+          </div>
+        `).join('')}
+
+        ${goals.length === 0 ? `
+          <div class="card empty">
+            <em>No goals yet.</em><br>Click "+ New goal" to create your first one.
+          </div>
+        ` : ''}
+
         <div class="card fade-in">
-          <div class="card-head">
-            <div class="card-title">${g.name}</div>
-            <div class="card-meta">${g.pct}% complete</div>
-          </div>
-          <div class="bar" style="height:10px;margin-bottom:14px">
-            <div class="bar-fill ${g.color}" style="width:${g.pct}%"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;font-size:13px">
-            <div>
-              <div class="card-meta" style="margin-bottom:4px">Target</div>
-              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target)}</div>
-            </div>
-            <div>
-              <div class="card-meta" style="margin-bottom:4px">Current</div>
-              <div style="font-family:var(--font-display);font-size:22px;font-weight:500;color:var(--good)">${mxn(g.current)}</div>
-            </div>
-            <div>
-              <div class="card-meta" style="margin-bottom:4px">Remaining</div>
-              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.target - g.current)}</div>
-            </div>
-            <div>
-              <div class="card-meta" style="margin-bottom:4px">Monthly</div>
-              <div style="font-family:var(--font-display);font-size:22px;font-weight:500">${mxn(g.monthly)}</div>
-            </div>
-          </div>
-          <div class="insight" style="margin-top:1.5rem">
-            <strong>${g.monthly > 0 ? `~${Math.ceil((g.target - g.current) / g.monthly)} months` : '—'}</strong>
-            ${g.monthly > 0 ? `at ${mxn(g.monthly)}/month — and the next savings fund injection (Jan/Jul) accelerates this.` : 'set a monthly plan to estimate completion.'}
-          </div>
+          <div class="card-title" style="margin-bottom:1rem">💡 Savings fund strategy</div>
+          <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
+            You receive ~${mxn(state.income.fundJanuary)} in January and ${mxn(state.income.fundJuly)} in July.
+            How you split these is up to you per round — drop them into the goals where you need the boost most.
+          </p>
         </div>
-      `).join('')}
+      `;
 
-      <div class="card fade-in">
-        <div class="card-title" style="margin-bottom:1rem">💡 Savings fund strategy</div>
-        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
-          You receive <strong>~${mxn(state.income.fundJanuary)}</strong> in January and <strong>${mxn(state.income.fundJuly)}</strong> in July.
-          At 50/50 split: <strong>${mxn(state.income.fundJanuary/2)}</strong> goes to the car, <strong>${mxn(state.income.fundJanuary/2)}</strong> goes to Brazil — twice a year.
-        </p>
-        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-top:0.75rem">
-          That's <strong>+${mxn(state.income.fundJanuary)}</strong> per goal per year on top of monthly contributions. Brazil completes in roughly 6 months after the first fund hits.
-        </p>
-      </div>
-    `;
+      mountAddModal();
+    }
 
-    mountAddModal();
+    function updateGoalField(id, field, value) {
+      const g = state.goals.find(x => x.id === id);
+      if (!g) return;
+      if (field === 'target' || field === 'monthly') {
+        g[field] = parseFloat(value) || 0;
+      } else {
+        g[field] = value;
+      }
+      saveState();
+      render();
+    }
+
+    function addGoal() {
+      const name = prompt('Goal name (with emoji, e.g., "✈️ Tokyo trip"):');
+      if (!name) return;
+      const target = parseFloat(prompt('Target amount (MXN):') || '0');
+      if (!target || target <= 0) { alert('Invalid target'); return; }
+      const monthly = parseFloat(prompt('Monthly contribution (MXN):') || '0');
+      const category = (prompt('Category code (no spaces, e.g., Tokyo-Trip):') || 'Custom-' + Date.now()).replace(/\s+/g, '-');
+      const color = ['emergency', 'car', 'brazil', 'room'][state.goals.length % 4];
+      state.goals.push({
+        id: 'g' + Date.now(),
+        name, target, monthly, category, color,
+      });
+      saveState();
+      render();
+    }
+
+    function deleteGoal(id) {
+      const g = state.goals.find(x => x.id === id);
+      if (!g) return;
+      if (!confirm('Delete "' + g.name + '"?\n\nTransactions linked to category "' + g.category + '" stay in your records, but the goal disappears.')) return;
+      state.goals = state.goals.filter(x => x.id !== id);
+      saveState();
+      render();
+    }
+
+    render();
   </script>
 </body>
 </html>

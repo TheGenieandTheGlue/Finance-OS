@@ -26,12 +26,16 @@
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
+    const aheadText = s.aheadOrBehind > 0
+      ? `<span style="color:var(--good)">+${mxn(s.aheadOrBehind)} vs pace</span>`
+      : `<span style="color:var(--warn)">${mxn(s.aheadOrBehind)} vs pace</span>`;
+
     document.getElementById('content').innerHTML = `
       <div class="page-head fade-in">
         <div>
           <div class="eyebrow">Life Control Center</div>
           <h1 class="page-title">${greeting}, <em>here's where you stand</em></h1>
-          <div class="page-sub">Catorcena · day ${14 - s.cat.daysLeft} of 14 · ${s.cat.daysLeft} days to next payday</div>
+          <div class="page-sub">Catorcena · day ${s.cat.daysElapsed} of ${s.cat.totalDays} · ${s.cat.daysLeft} days to next payday</div>
         </div>
         <div class="health-badge">
           <div class="label">Month health</div>
@@ -44,7 +48,7 @@
         <div class="stat">
           <div class="label">Safe today</div>
           <div class="value">${mxn(Math.max(0, s.safeDaily))}</div>
-          <div class="delta">variable / day</div>
+          <div class="delta">over ${s.cat.daysLeft} days · ${aheadText}</div>
         </div>
         <div class="stat">
           <div class="label">Catorcena left</div>
@@ -63,82 +67,91 @@
         </div>
       </div>
 
-      <div class="card fade-in">
-        <div class="card-head">
-          <div class="card-title">Savings goals</div>
-          <div class="card-meta">${goals.length} active</div>
-        </div>
-        ${goals.map(g => `
-          <div class="goal">
-            <div class="goal-head">
-              <span class="goal-name">${g.name}</span>
-              <span class="goal-numbers">${mxn(g.current)} / ${mxn(g.target)} · ${g.pct}%</span>
+      <div class="home-grid">
+        <div>
+          <div class="card fade-in">
+            <div class="card-head">
+              <div class="card-title">Savings goals</div>
+              <a href="goals.html" class="card-meta" style="color:var(--info)">Edit goals →</a>
             </div>
-            <div class="bar"><div class="bar-fill ${g.color}" style="width:${g.pct}%"></div></div>
-            <div class="goal-foot">
-              <span>${mxn(g.monthly)}/mo planned</span>
-              <span class="pace ${g.pct > 0 ? 'on' : 'off'}">${g.pct > 0 ? '✓ contributions logged' : '— no contributions yet'}</span>
+            ${goals.map(g => `
+              <div class="goal">
+                <div class="goal-head">
+                  <span class="goal-name">${g.name}</span>
+                  <span class="goal-numbers">${mxn(g.current)} / ${mxn(g.target)} · ${g.pct}%</span>
+                </div>
+                <div class="bar"><div class="bar-fill ${g.color}" style="width:${g.pct}%"></div></div>
+                <div class="goal-foot">
+                  <span>${mxn(g.monthly)}/mo planned</span>
+                  <span class="pace ${g.pct > 0 ? 'on' : 'off'}">${g.pct > 0 ? '✓ contributions logged' : '— no contributions yet'}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="card fade-in">
+            <div class="card-head">
+              <div class="card-title">This catorcena</div>
+              <div class="card-meta">${mxn(state.income.biweekly)} planned</div>
+            </div>
+            <table class="budget-table">
+              <thead><tr><th>Category</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Left</th></tr></thead>
+              <tbody>
+                ${budgetRow('Fixed', state.catorcena.fixed, actuals.fixed)}
+                ${budgetRow('Variable', state.catorcena.variable, actuals.variable)}
+                ${budgetRow('YouTube', state.catorcena.youtube, actuals.youtube)}
+                ${budgetRow('Crypto', state.catorcena.crypto, actuals.crypto)}
+                ${goals.map(g => budgetRow(g.name, state.catorcena[g.id === 'g1' ? 'emergency' : g.id === 'g2' ? 'car' : g.id === 'g3' ? 'brazil' : g.id === 'g4' ? 'room' : 'emergency'] || 0, actuals[g.id])).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card fade-in">
+            <div class="card-head">
+              <div class="card-title">Recent transactions</div>
+              <a href="transactions.html" class="card-meta" style="color:var(--info)">View all →</a>
+            </div>
+            ${recent.length === 0 ? `
+              <div class="empty"><em>No transactions yet.</em><br>Use a quick-entry button on the right to start.</div>
+            ` : recent.map(t => `
+              <div class="txn">
+                <div class="date">${formatDate(t.date)}</div>
+                <div class="name">${t.name}${t.isImpulse ? ' 🚨' : ''}</div>
+                <div><span class="pill ${pillClass(t.category)}">${t.category}</span></div>
+                <div class="amount ${t.type === 'Income' ? 'in' : ''}">${t.type === 'Income' ? '+' : '−'}${mxn(t.amount)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="side-col">
+          <div class="side-card fade-in">
+            <h3>Quick add</h3>
+            <div class="quick-entries">
+              ${renderQuickEntries()}
+            </div>
+            <div class="smart-insight" style="margin-top:1rem">
+              💡 Spend less today and "Safe today" recalculates higher tomorrow automatically.
             </div>
           </div>
-        `).join('')}
-      </div>
 
-      <div class="grid-2 fade-in">
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">This catorcena</div>
-            <div class="card-meta">${mxn(state.income.biweekly)} planned</div>
+          <div class="side-card fade-in">
+            <h3>Catorcena tools</h3>
+            <button class="btn primary" onclick="runCatorcenaSetup()" style="width:100%;margin-bottom:6px">⚡ Catorcena Setup</button>
+            <button class="btn" onclick="runSubscriptionsBlock()" style="width:100%">📅 Add monthly subs</button>
+            <div class="smart-insight" style="margin-top:0.75rem">
+              Run setup on every payday · Subs on day 1 of month.
+            </div>
           </div>
-          <table class="budget-table">
-            <thead><tr><th>Category</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Left</th></tr></thead>
-            <tbody>
-              ${budgetRow('Fixed', state.catorcena.fixed, actuals.fixed)}
-              ${budgetRow('Variable', state.catorcena.variable, actuals.variable)}
-              ${budgetRow('Car', state.catorcena.car, actuals.car)}
-              ${budgetRow('YouTube', state.catorcena.youtube, actuals.youtube)}
-              ${budgetRow('Crypto', state.catorcena.crypto, actuals.crypto)}
-              ${budgetRow('Room', state.catorcena.room, actuals.room)}
-              ${budgetRow('Brazil', state.catorcena.brazil, actuals.brazil)}
-              ${budgetRow('Plus Fund', state.catorcena.emergency, actuals.emergency)}
-            </tbody>
-          </table>
-        </div>
 
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">Habits this week</div>
-            <div class="card-meta">Last 7 days</div>
+          <div class="side-card fade-in">
+            <h3>Pace check</h3>
+            <div style="font-size:13px;color:var(--ink-soft);line-height:1.7">
+              By day ${s.cat.daysElapsed}, expected variable spend: <strong>${mxn(s.todayQuota * s.cat.daysElapsed)}</strong><br>
+              Actual: <strong>${mxn(s.variableSpent)}</strong><br>
+              <span style="color:${s.aheadOrBehind > 0 ? 'var(--good)' : 'var(--warn)'}">${s.aheadOrBehind > 0 ? '✓ Ahead by ' : '⚠ Behind by '}${mxn(Math.abs(s.aheadOrBehind))}</span>
+            </div>
           </div>
-          <div class="habit-row"><span>💪 Gym</span><span class="count good">${state.habits.gym} / 7</span></div>
-          <div class="habit-row"><span>🚫 No-impulse day</span><span class="count ${state.habits.noImpulse >= 5 ? 'good' : 'warn'}">${state.habits.noImpulse} / 7</span></div>
-          <div class="habit-row"><span>🎬 YouTube work</span><span class="count ${state.habits.ytWork >= 4 ? 'good' : 'warn'}">${state.habits.ytWork} / 7</span></div>
-          <div class="habit-row"><span>🪙 Crypto DCA</span><span class="count ${state.habits.dca ? 'good' : 'warn'}">${state.habits.dca ? '✓ done' : '— pending'}</span></div>
-          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-mute)">
-            Weekly score: <strong style="color:var(--ink)">${state.habits.gym + state.habits.noImpulse + state.habits.ytWork + (state.habits.dca ? 1 : 0)} / 22</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="card fade-in">
-        <div class="card-head">
-          <div class="card-title">Recent transactions</div>
-          <a href="transactions.html" class="card-meta" style="color:var(--info)">View all →</a>
-        </div>
-        ${recent.length === 0 ? `
-          <div class="empty"><em>No transactions yet.</em><br>Tap + or run Catorcena Setup to start.</div>
-        ` : recent.map(t => `
-          <div class="txn">
-            <div class="date">${formatDate(t.date)}</div>
-            <div class="name">${t.name}${t.isImpulse ? ' 🚨' : ''}</div>
-            <div><span class="pill ${pillClass(t.category)}">${t.category}</span></div>
-            <div class="amount ${t.type === 'Income' ? 'in' : ''}">${t.type === 'Income' ? '+' : '−'}${mxn(t.amount)}</div>
-          </div>
-        `).join('')}
-        <div class="btn-row">
-          <button class="btn" onclick="openAddModal({category:'Food-Out'})">+ Food-out</button>
-          <button class="btn" onclick="openAddModal({category:'Transport'})">+ Transport</button>
-          <button class="btn" onclick="openAddModal({category:'Impulse',impulse:true})">+ Impulse</button>
-          <button class="btn primary" onclick="runCatorcenaSetup()">⚡ Catorcena Setup</button>
         </div>
       </div>
     `;

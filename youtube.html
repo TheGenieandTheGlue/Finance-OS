@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance OS — YouTube</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar"></div>
+    <main class="main">
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('sidebar').outerHTML = renderSidebar('yt');
+
+    function render() {
+      const stats = getYouTubeStats();
+      const chartMax = Math.max(...stats.channels.map(c => c.revPerHour), 1);
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-head fade-in">
+          <div>
+            <div class="eyebrow">📈 Growth / YouTube</div>
+            <h1 class="page-title">Your <em>channels</em></h1>
+            <div class="page-sub">Track time, revenue, and pipeline per channel</div>
+          </div>
+        </div>
+
+        <div class="stats-grid fade-in" style="margin-bottom:2rem">
+          <div class="stat">
+            <div class="label">Total revenue (lifetime)</div>
+            <div class="value">${mxn(stats.totalRevenue)}</div>
+            <div class="delta good">across ${stats.channels.length} channels</div>
+          </div>
+          <div class="stat">
+            <div class="label">Hours invested</div>
+            <div class="value">${Math.round(stats.totalMinutes / 60)}<span style="font-size:18px;color:var(--ink-mute)">h</span></div>
+            <div class="delta">${stats.totalMinutes} minutes total</div>
+          </div>
+          <div class="stat">
+            <div class="label">Videos published</div>
+            <div class="value">${stats.totalDone}</div>
+            <div class="delta">across all channels</div>
+          </div>
+          <div class="stat">
+            <div class="label">Avg revenue/hour</div>
+            <div class="value">${mxn(stats.totalMinutes > 0 ? (stats.totalRevenue / (stats.totalMinutes / 60)) : 0)}</div>
+            <div class="delta">effort vs payoff</div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <div class="card-head">
+            <div class="card-title">Revenue per hour by channel</div>
+            <div class="card-meta">Effort/payoff comparison</div>
+          </div>
+          ${stats.totalRevenue === 0 ? `
+            <div class="empty"><em>No revenue logged yet.</em><br>Log revenue per channel below and time sessions to populate this chart.</div>
+          ` : `
+            <div class="bar-chart">
+              ${stats.channels.filter(c => c.totalMinutes > 0 || c.revenue > 0).map(c => `
+                <div class="bc-row">
+                  <div class="bc-name">${c.name}</div>
+                  <div class="bc-bar"><div class="bc-fill" style="width:${(c.revPerHour / chartMax) * 100}%"></div></div>
+                  <div class="bc-value">${mxn(c.revPerHour)}/h</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="smart-insight" style="margin-top:1rem">
+              💡 The channel with the highest bar earns you the most per hour invested. Consider doubling down there.
+            </div>
+          `}
+        </div>
+
+        ${stats.channels.map(c => `
+          <div class="yt-channel fade-in">
+            <div class="yt-channel-head">
+              <input class="yt-channel-name" value="${c.name}" onchange="renameChannel('${c.id}', this.value)" placeholder="Channel name">
+              <div style="display:flex;gap:6px">
+                <button class="btn" onclick="logSession('${c.id}')">⏱ Log time</button>
+                <button class="btn" onclick="logRevenue('${c.id}')">💵 Add revenue</button>
+                <button class="btn" onclick="deleteChannel('${c.id}')" title="Delete channel" style="color:var(--bad)">×</button>
+              </div>
+            </div>
+
+            <div class="yt-channel-stats">
+              <div class="yt-stat">
+                <div class="label">Subscribers</div>
+                <div class="value"><input class="inline-edit" type="number" value="${c.subs}" onchange="updateSubs('${c.id}', this.value)" style="width:90px;text-align:left;font-family:var(--font-display);font-size:18px"></div>
+                <div class="sub">goal +${c.monthlyGoal}/mo</div>
+              </div>
+              <div class="yt-stat">
+                <div class="label">Revenue (lifetime)</div>
+                <div class="value">${mxn(c.revenue)}</div>
+                <div class="sub">${c.pipeline.done > 0 ? mxn(c.revPerVideo) + '/video' : '—'}</div>
+              </div>
+              <div class="yt-stat">
+                <div class="label">Time invested</div>
+                <div class="value">${Math.round(c.totalMinutes / 60)}<span style="font-size:13px;color:var(--ink-mute)">h ${c.totalMinutes % 60}m</span></div>
+                <div class="sub">${c.totalMinutes > 0 ? mxn(c.revPerHour) + '/hour' : 'log time to see'}</div>
+              </div>
+              <div class="yt-stat">
+                <div class="label">Monthly sub goal</div>
+                <div class="value"><input class="inline-edit" type="number" value="${c.monthlyGoal}" onchange="updateGoal('${c.id}', this.value)" style="width:60px;text-align:left;font-family:var(--font-display);font-size:18px"></div>
+              </div>
+            </div>
+
+            <div class="yt-pipeline">
+              <div class="yt-pipeline-step">
+                <div class="label">💡 Ideas</div>
+                <div class="count">
+                  <button onclick="pipelineAdjust('${c.id}','ideas',-1)">−</button>
+                  <span>${c.pipeline.ideas}</span>
+                  <button onclick="pipelineAdjust('${c.id}','ideas',1)">+</button>
+                </div>
+              </div>
+              <div class="yt-pipeline-step">
+                <div class="label">🎬 In progress</div>
+                <div class="count">
+                  <button onclick="pipelineAdjust('${c.id}','progress',-1)">−</button>
+                  <span>${c.pipeline.progress}</span>
+                  <button onclick="pipelineAdjust('${c.id}','progress',1)">+</button>
+                </div>
+              </div>
+              <div class="yt-pipeline-step">
+                <div class="label">✅ Published</div>
+                <div class="count">
+                  <button onclick="pipelineAdjust('${c.id}','done',-1)">−</button>
+                  <span>${c.pipeline.done}</span>
+                  <button onclick="pipelineAdjust('${c.id}','done',1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            ${state.youtube.sessions.filter(s => s.channelId === c.id).length > 0 ? `
+              <div class="session-log">
+                <div class="card-meta" style="margin-bottom:0.5rem">Recent sessions</div>
+                ${state.youtube.sessions.filter(s => s.channelId === c.id).slice(0, 3).map(sess => `
+                  <div class="session-row">
+                    <span>${formatDate(sess.date)} · ${sess.note || 'session'}</span>
+                    <span>${Math.floor(sess.minutes/60)}h ${sess.minutes%60}m</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+
+        <div class="card fade-in">
+          <div class="btn-row" style="margin:0">
+            <button class="btn primary" onclick="addChannel()">+ Add channel</button>
+            <a href="#" class="btn" onclick="alert('ATracker has no public API. Use the manual ⏱ Log time button on each channel. CSV import coming if you want it.'); return false">📲 ATracker?</a>
+          </div>
+        </div>
+      `;
+
+      mountAddModal();
+    }
+
+    function renameChannel(id, name) {
+      const c = state.youtube.channels.find(x => x.id === id);
+      if (c) { c.name = name; saveState(); }
+    }
+
+    function updateSubs(id, val) {
+      const c = state.youtube.channels.find(x => x.id === id);
+      if (c) { c.subs = parseInt(val) || 0; saveState(); }
+    }
+
+    function updateGoal(id, val) {
+      const c = state.youtube.channels.find(x => x.id === id);
+      if (c) { c.monthlyGoal = parseInt(val) || 0; saveState(); }
+    }
+
+    function pipelineAdjust(channelId, stage, delta) {
+      if (!state.youtube.pipeline[channelId]) state.youtube.pipeline[channelId] = { ideas: 0, progress: 0, done: 0 };
+      state.youtube.pipeline[channelId][stage] = Math.max(0, state.youtube.pipeline[channelId][stage] + delta);
+      saveState();
+      render();
+    }
+
+    function logSession(channelId) {
+      const hours = prompt('Hours spent? (e.g., 1.5)');
+      if (!hours) return;
+      const h = parseFloat(hours);
+      if (isNaN(h) || h <= 0) { alert('Invalid number'); return; }
+      const note = prompt('Note (optional, e.g., "edited intro"):') || '';
+      state.youtube.sessions.unshift({
+        id: Date.now(),
+        channelId,
+        date: todayISO(),
+        minutes: Math.round(h * 60),
+        note,
+      });
+      saveState();
+      render();
+    }
+
+    function logRevenue(channelId) {
+      const amount = prompt('Revenue amount (MXN):');
+      if (!amount) return;
+      const a = parseFloat(amount);
+      if (isNaN(a) || a <= 0) { alert('Invalid number'); return; }
+      const c = state.youtube.channels.find(x => x.id === channelId);
+      if (c) {
+        c.revenue += a;
+        // Also create an income transaction so it shows in monthly stats
+        state.transactions.unshift({
+          id: Date.now(),
+          name: 'YouTube revenue: ' + c.name,
+          amount: a,
+          category: 'Income-YouTube',
+          type: 'Income',
+          date: todayISO(),
+          isImpulse: false,
+        });
+        saveState();
+        render();
+      }
+    }
+
+    function addChannel() {
+      const name = prompt('Channel name:');
+      if (!name) return;
+      const id = 'c' + Date.now();
+      state.youtube.channels.push({ id, name, subs: 0, monthlyGoal: 100, revenue: 0 });
+      state.youtube.pipeline[id] = { ideas: 0, progress: 0, done: 0 };
+      saveState();
+      render();
+    }
+
+    function deleteChannel(id) {
+      const c = state.youtube.channels.find(x => x.id === id);
+      if (!c) return;
+      if (!confirm('Delete channel "' + c.name + '"? Its sessions and pipeline will also be removed.')) return;
+      state.youtube.channels = state.youtube.channels.filter(x => x.id !== id);
+      state.youtube.sessions = state.youtube.sessions.filter(s => s.channelId !== id);
+      delete state.youtube.pipeline[id];
+      saveState();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

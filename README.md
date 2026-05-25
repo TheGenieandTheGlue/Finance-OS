@@ -10,7 +10,7 @@ No accounts. No tracking. No backend. Your data stays in your browser.
 ## ✨ Features
 
 - **Biweekly budget tracking** — built for 14-day pay cycles ("catorcenas")
-- **4 pre-loaded savings goals** — plus fund, car, Brazil trip, room upgrades
+- **4 pre-loaded savings goals** — emergency fund, car, Brazil trip, room upgrades
 - **Auto-calculated "safe to spend today"** — daily variable budget that adjusts to your spending
 - **Health score** — 0–100 monthly score based on savings rate, spending discipline, and impulse buys
 - **Impulse audit** — flag impulse purchases and reflect on them weekly
@@ -74,7 +74,7 @@ Now it lives as an icon on your phone like an app. The + button in the bottom-ri
 
 **On payday (every 14 days):**
 1. Open the app
-2. Tap **⚡ Catorcena Setup** — instantly logs your paycheck + all 6 planned transfers (car, Brazil, crypto, YouTube, room, plus fund)
+2. Tap **⚡ Catorcena Setup** — instantly logs your paycheck + all 6 planned transfers (car, Brazil, crypto, YouTube, room, emergency)
 3. Done. Your budget is set for the period.
 
 **On the 1st of the month:**

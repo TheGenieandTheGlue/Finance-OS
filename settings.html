@@ -31,31 +31,6 @@
 
       <div class="card fade-in">
         <div class="card-head">
-          <div class="card-title">💪 Habits this week</div>
-          <div class="card-meta">Update manually each evening</div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
-          <div>
-            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">Gym days (0-7)</label>
-            <input type="number" min="0" max="7" value="${state.habits.gym}" id="h-gym" onchange="updateHabit('gym', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">No-impulse days</label>
-            <input type="number" min="0" max="7" value="${state.habits.noImpulse}" onchange="updateHabit('noImpulse', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase">YouTube work days</label>
-            <input type="number" min="0" max="7" value="${state.habits.ytWork}" onchange="updateHabit('ytWork', this.value)" style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);margin-top:4px">
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:1.5rem">
-            <input type="checkbox" id="h-dca" ${state.habits.dca ? 'checked' : ''} onchange="updateHabit('dca', this.checked)" style="width:18px;height:18px">
-            <label for="h-dca" style="font-size:14px">Crypto DCA done this week</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="card fade-in">
-        <div class="card-head">
           <div class="card-title">💾 Backup &amp; restore</div>
           <div class="card-meta">${sizeKB} KB used</div>
         </div>
@@ -84,26 +59,48 @@
           <thead><tr><th>Category</th><th class="num">Monthly</th><th class="num">Biweekly</th></tr></thead>
           <tbody>
             ${configRow('Fixed expenses', 'fixed')}
-            ${configRow('Variable (food/transport/impulse)', 'variable')}
+            ${configRow('Variable (food/transport/impulse/etc)', 'variable')}
             ${configRow('Car savings', 'car')}
             ${configRow('Brazil savings', 'brazil')}
-            ${configRow('Plus Fund', 'emergency')}
+            ${configRow('Plus fund', 'emergency')}
             ${configRow('YouTube investment', 'youtube')}
             ${configRow('Crypto DCA', 'crypto')}
             ${configRow('Room upgrades', 'room')}
           </tbody>
         </table>
+        <div class="smart-insight" style="margin-top:1rem">
+          💡 Changing budget here updates how "Safe today" is calculated and what the Catorcena Setup transfers.
+        </div>
       </div>
 
       <div class="card fade-in">
         <div class="card-head"><div class="card-title">📦 Data summary</div></div>
         <table class="budget-table">
           <tr><td class="cat">Total transactions</td><td class="num">${state.transactions.length}</td></tr>
+          <tr><td class="cat">Active goals</td><td class="num">${state.goals.length}</td></tr>
           <tr><td class="cat">Reviews saved</td><td class="num">${state.reviews.length}</td></tr>
-          <tr><td class="cat">YouTube channels tracked</td><td class="num">${state.youtube.length}</td></tr>
-          <tr><td class="cat">Crypto assets tracked</td><td class="num">${state.crypto.length}</td></tr>
+          <tr><td class="cat">YouTube channels</td><td class="num">${state.youtube.channels.length}</td></tr>
+          <tr><td class="cat">YouTube sessions logged</td><td class="num">${state.youtube.sessions.length}</td></tr>
+          <tr><td class="cat">Crypto assets</td><td class="num">${state.crypto.assets.length}</td></tr>
+          <tr><td class="cat">Crypto movements</td><td class="num">${state.crypto.movements.length}</td></tr>
           <tr><td class="cat">Storage used</td><td class="num">${sizeKB} KB</td></tr>
         </table>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-title" style="margin-bottom:1rem">ℹ️ About this version</div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.7">
+          <strong>v2 changes:</strong>
+        </p>
+        <ul style="font-size:13px;color:var(--ink-soft);line-height:1.9;margin-left:1rem;margin-top:0.5rem">
+          <li>YouTube and Crypto are now separate pages with their own features</li>
+          <li>Goals are fully editable (name, target, monthly, color, delete)</li>
+          <li>Crypto tracks deposits, buys, sells, withdrawals separately — see real net P&L</li>
+          <li>Crypto prices auto-fetch from CoinGecko (free, no key needed)</li>
+          <li>YouTube tracks revenue, time per channel, and effort/payoff chart</li>
+          <li>Quick-entry buttons on home page for fast logging</li>
+          <li>Habits tracker removed (was unused)</li>
+        </ul>
       </div>
     `;
 
@@ -121,10 +118,6 @@
     }
     function updateCatorcena(key, val) {
       state.catorcena[key] = parseFloat(val) || 0;
-      saveState();
-    }
-    function updateHabit(key, val) {
-      state.habits[key] = key === 'dca' ? val : (parseInt(val) || 0);
       saveState();
     }
 
