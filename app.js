@@ -402,11 +402,12 @@ function getCryptoStats() {
 function getYouTubeStats() {
   const channels = state.youtube.channels.map(c => {
     const sessions = state.youtube.sessions.filter(s => s.channelId === c.id);
-    const totalMinutes = sessions.reduce((sum, s) => sum + s.minutes, 0);
+    const totalMinutes = sessions.reduce((sum, s) => sum + (s.minutes || 0), 0);
     const pipeline = state.youtube.pipeline[c.id] || { ideas: 0, progress: 0, done: 0 };
-    const revPerHour = totalMinutes > 0 ? (c.revenue / (totalMinutes / 60)) : 0;
-    const revPerVideo = pipeline.done > 0 ? c.revenue / pipeline.done : 0;
-    return { ...c, totalMinutes, pipeline, revPerHour, revPerVideo };
+    const safeRevenue = (typeof c.revenue === 'number' && !isNaN(c.revenue)) ? c.revenue : 0;
+    const revPerHour = totalMinutes > 0 ? (safeRevenue / (totalMinutes / 60)) : 0;
+    const revPerVideo = pipeline.done > 0 ? safeRevenue / pipeline.done : 0;
+    return { ...c, revenue: safeRevenue, totalMinutes, pipeline, revPerHour, revPerVideo };
   });
   const totalRevenue = channels.reduce((s, c) => s + c.revenue, 0);
   const totalMinutes = channels.reduce((s, c) => s + c.totalMinutes, 0);
