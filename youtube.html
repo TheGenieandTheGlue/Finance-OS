@@ -202,22 +202,33 @@
     }
 
     function logRevenue(channelId) {
-      const c = state.youtube.channels.find(x => x.id === channelId);
-      if (!c) { alert('Canal no encontrado'); return; }
+      let c = state.youtube.channels.find(x => x.id === channelId);
+
+      // Defensive: if channel ID doesn't match (old cached data),
+      // ask the user which channel and let them continue without error
+      if (!c) {
+        const names = state.youtube.channels.map((ch, i) => `${i + 1}. ${ch.name}`).join('\n');
+        const pick = prompt('No encontré ese canal (tienes data vieja).\nElige el número del canal:\n\n' + names);
+        if (!pick) return;
+        const idx = parseInt(pick) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= state.youtube.channels.length) {
+          alert('Selección inválida. Tip: ve a Settings → Reset to defaults para limpiar data vieja.');
+          return;
+        }
+        c = state.youtube.channels[idx];
+      }
 
       const input = prompt('Cuánto ganaste con "' + c.name + '"? (MXN)');
-      if (input === null) return; // user cancelled
+      if (input === null) return;
       const amount = parseFloat(input);
       if (isNaN(amount) || amount <= 0) {
         alert('Monto inválido. Pon un número mayor que 0.');
         return;
       }
 
-      // Defensive: ensure revenue is numeric
       if (typeof c.revenue !== 'number' || isNaN(c.revenue)) c.revenue = 0;
       c.revenue += amount;
 
-      // Create income transaction
       state.transactions.unshift({
         id: Date.now() + Math.random(),
         name: 'YouTube revenue: ' + c.name,

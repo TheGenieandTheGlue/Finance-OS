@@ -160,95 +160,157 @@
       const goals = getGoalProgress();
       const s = getSimpleStats();
 
-      // Calculate months remaining per goal (NO extra income assumed)
+      // ESTRATEGIA:
+      // 1. Para cada meta, calculamos cuántos meses tardas en llegar al pace actual.
+      // 2. Si la meta está a > 6 meses, parte de lo que ya tienes guardado se puede mover a crypto
+      //    porque el monthly inflow llenará el "hueco" antes de que necesites el dinero.
+      // 3. La regla: puedes invertir hasta (currentSaved - safetyBuffer) donde safetyBuffer
+      //    es lo que necesitarás en los próximos 3 meses (colchón) — pero solo si la meta está lejos.
+      // 4. El % máximo a mover depende del horizonte: más lejos = más permisible.
+
+      const SAFETY_MONTHS = 3; // colchón de seguridad: no toques lo que necesitas en próximos 3 meses
+
       const goalAnalysis = goals.map(g => {
         const remainingMXN = g.target - g.current;
-        const monthsAtCurrentPace = g.monthly > 0 ? remainingMXN / g.monthly : Infinity;
-        const catorcenasRemaining = g.biweeklyAmount > 0 ? Math.ceil(remainingMXN / g.biweeklyAmount) : Infinity;
+        const monthsToGoal = g.monthly > 0 ? remainingMXN / g.monthly : Infinity;
+        const currentSaved = g.current;
 
-        // Risk profile based on time horizon
-        let risk, riskColor, suggestedCryptoPct, reason;
-        if (monthsAtCurrentPace > 12) {
-          risk = 'Lejano';
-          riskColor = 'var(--good)';
-          suggestedCryptoPct = '10–20%';
-          reason = 'Horizonte largo: la volatilidad se absorbe en el tiempo.';
-        } else if (monthsAtCurrentPace > 6) {
-          risk = 'Medio';
-          riskColor = 'var(--warn)';
-          suggestedCryptoPct = '5–10%';
-          reason = 'Horizonte medio: limita el downside.';
-        } else if (monthsAtCurrentPace > 3) {
-          risk = 'Cercano';
-          riskColor = 'var(--warn)';
-          suggestedCryptoPct = '0–5%';
-          reason = 'Casi llegando: mejor mantener líquido.';
+        // "Safety buffer": cuánto del current saved necesitas mantener líquido
+        // Si la meta es en X meses y X < SAFETY_MONTHS, necesitas TODO líquido
+        // Si X > SAFETY_MONTHS, necesitas mantener (SAFETY_MONTHS * monthly) líquido como buffer
+        let liquidNeeded;
+        if (monthsToGoal <= SAFETY_MONTHS) {
+          liquidNeeded = currentSaved; // todo líquido, ya casi llegas
         } else {
-          risk = 'Inminente';
-          riskColor = 'var(--bad)';
-          suggestedCryptoPct = '0%';
-          reason = 'Muy pronto: no arriesgues dinero que necesitas en menos de 3 meses.';
+          // Mantén el equivalente a SAFETY_MONTHS de aporte líquido
+          liquidNeeded = Math.min(currentSaved, SAFETY_MONTHS * g.monthly);
         }
 
-        return { ...g, remainingMXN, monthsAtCurrentPace, catorcenasRemaining, risk, riskColor, suggestedCryptoPct, reason };
+        // Excedente que técnicamente podría mover a crypto
+        const excess = Math.max(0, currentSaved - liquidNeeded);
+
+        // % máximo del excedente según horizonte (más lejos = más agresivo)
+        let maxPctOfExcess, label, labelColor;
+        if (monthsToGoal > 18) {
+          maxPctOfExcess = 0.30; label = 'Largo plazo'; labelColor = 'var(--good)';
+        } else if (monthsToGoal > 12) {
+          maxPctOfExcess = 0.20; label = 'Lejano'; labelColor = 'var(--good)';
+        } else if (monthsToGoal > 6) {
+          maxPctOfExcess = 0.10; label = 'Medio'; labelColor = 'var(--warn)';
+        } else if (monthsToGoal > 3) {
+          maxPctOfExcess = 0.05; label = 'Cercano'; labelColor = 'var(--warn)';
+        } else {
+          maxPctOfExcess = 0; label = 'Inminente'; labelColor = 'var(--bad)';
+        }
+
+        const conservativeMXN = Math.round(excess * maxPctOfExcess * 0.5); // mitad de lo máximo
+        const aggressiveMXN = Math.round(excess * maxPctOfExcess);
+
+        // Plazo recomendado: meses hasta la meta menos colchón
+        const recommendedHoldMonths = Math.max(0, Math.floor(monthsToGoal - SAFETY_MONTHS));
+
+        return {
+          ...g,
+          remainingMXN,
+          monthsToGoal,
+          currentSaved,
+          liquidNeeded,
+          excess,
+          maxPctOfExcess,
+          conservativeMXN,
+          aggressiveMXN,
+          recommendedHoldMonths,
+          label,
+          labelColor,
+        };
       });
 
+      const totalConservative = goalAnalysis.reduce((sum, g) => sum + g.conservativeMXN, 0);
+      const totalAggressive = goalAnalysis.reduce((sum, g) => sum + g.aggressiveMXN, 0);
       const totalParked = goals.reduce((sum, g) => sum + g.current, 0);
 
       // Personalized message based on crypto P&L
       let cryptoMoodMessage = '';
       if (s.totalInvestedMXN === 0) {
-        cryptoMoodMessage = `Aún no tienes posición en crypto. Si decides empezar, considera asignar primero solo de goals con horizonte mayor a 12 meses.`;
+        cryptoMoodMessage = `Aún no tienes crypto. Si decides entrar, los números abajo te dicen exactamente cuánto MXN podrías mover de cada meta sin comprometer tus objetivos.`;
       } else if (s.totalPLPct > 20) {
-        cryptoMoodMessage = `🔥 <strong>Tu crypto está +${s.totalPLPct}%.</strong> Buen momento para considerar tomar ganancias parciales — vende un % y mándalo a la meta más cercana (${goalAnalysis.find(g => g.monthsAtCurrentPace < Infinity)?.name || 'tu meta principal'}).`;
+        cryptoMoodMessage = `🔥 <strong>Tu crypto está +${s.totalPLPct}%.</strong> Buen momento para considerar tomar ganancias parciales. Vender un 20-30% y mandarlo a la meta más cercana es una estrategia clásica.`;
       } else if (s.totalPLPct > 0) {
-        cryptoMoodMessage = `📈 <strong>Estás +${s.totalPLPct}%.</strong> Ganancia modesta. Si tienes meta a más de 12 meses con dinero parado, podrías reasignar algo (5-10%) sin mucho riesgo.`;
+        cryptoMoodMessage = `📈 <strong>Estás +${s.totalPLPct}%.</strong> Ganancia modesta. Los montos sugeridos abajo siguen aplicando — si quieres aumentar posición, hazlo desde excedentes de metas lejanas.`;
       } else if (s.totalPLPct > -15) {
-        cryptoMoodMessage = `📉 <strong>Estás ${s.totalPLPct}%.</strong> Caída moderada. NO vendas en pánico. Si crees en el activo, esto es lo normal — espera. NO metas más dinero de metas cercanas.`;
+        cryptoMoodMessage = `📉 <strong>Estás ${s.totalPLPct}%.</strong> Caída moderada. NO vendas en pánico. Estos números asumen que mantienes tu posición — si crees en el activo, considera estos montos para promediar a la baja, no para liquidar.`;
       } else {
-        cryptoMoodMessage = `🚨 <strong>Caída fuerte (${s.totalPLPct}%).</strong> Esto es exactamente cuando la gente vende y pierde de verdad. Si tu tesis original sigue válida, mantén. NO metas dinero de Plus Fund o Brasil ahora.`;
+        cryptoMoodMessage = `🚨 <strong>Caída fuerte (${s.totalPLPct}%).</strong> Esto es exactamente cuando la gente vende y pierde de verdad. Si tu tesis original sigue válida, mantén. NO uses estos números para meter más ahora si estás emocionalmente agitado.`;
       }
 
       return `
         <div class="card fade-in">
           <div class="card-head">
             <div class="card-title">💡 Smart allocation</div>
-            <div class="card-meta">Calculado con tus metas reales</div>
+            <div class="card-meta">Cuánto y cuándo, en pesos reales</div>
           </div>
 
           <div class="insight" style="margin-bottom:1rem">${cryptoMoodMessage}</div>
 
-          <p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:1rem">
-            Tienes <strong>${mxn(totalParked)}</strong> guardado entre tus metas. Esto es lo que sugiere cada una:
-          </p>
+          <div style="background:var(--bg-elev);padding:1rem;border-radius:var(--radius-sm);margin-bottom:1.5rem;font-size:13px;color:var(--ink-soft);line-height:1.7">
+            <strong style="color:var(--ink)">📐 Cómo se calcula esto:</strong><br>
+            • De cada meta, se reserva un <strong>colchón de seguridad de 3 meses</strong> de aportes (lo que pondrías en los próximos 3 meses).<br>
+            • El resto se considera "excedente" que podría trabajar más fuerte.<br>
+            • De ese excedente, se sugiere mover un % según qué tan lejos esté la meta.<br>
+            • La columna <strong>"Conservador"</strong> es la mitad del máximo. <strong>"Agresivo"</strong> es el máximo del rango.
+          </div>
 
           <table class="budget-table">
             <thead>
               <tr>
                 <th>Meta</th>
-                <th class="num">Falta</th>
-                <th class="num">Meses</th>
+                <th class="num">Guardado</th>
+                <th class="num">Líquido necesario</th>
+                <th class="num">Excedente</th>
                 <th>Horizonte</th>
-                <th class="num">% en crypto OK</th>
-                <th>Razón</th>
+                <th class="num" style="color:var(--good)">Conservador</th>
+                <th class="num" style="color:var(--warn)">Agresivo</th>
+                <th class="num">Plazo</th>
               </tr>
             </thead>
             <tbody>
               ${goalAnalysis.map(g => `
                 <tr>
                   <td class="cat">${g.name}</td>
-                  <td class="num">${mxn(g.remainingMXN)}</td>
-                  <td class="num">${g.monthsAtCurrentPace === Infinity ? '∞' : Math.ceil(g.monthsAtCurrentPace)}</td>
-                  <td><span style="color:${g.riskColor};font-weight:500">${g.risk}</span></td>
-                  <td class="num"><strong>${g.suggestedCryptoPct}</strong></td>
-                  <td class="cat" style="font-size:12px">${g.reason}</td>
+                  <td class="num">${mxn(g.currentSaved)}</td>
+                  <td class="num" style="color:var(--ink-mute)">${mxn(g.liquidNeeded)}</td>
+                  <td class="num">${mxn(g.excess)}</td>
+                  <td><span style="color:${g.labelColor};font-weight:500">${g.label}</span><br><span style="font-size:11px;color:var(--ink-mute)">${g.monthsToGoal === Infinity ? '∞' : Math.ceil(g.monthsToGoal)} meses a meta</span></td>
+                  <td class="num" style="color:var(--good);font-weight:500">${g.conservativeMXN > 0 ? mxn(g.conservativeMXN) : '—'}</td>
+                  <td class="num" style="color:var(--warn);font-weight:500">${g.aggressiveMXN > 0 ? mxn(g.aggressiveMXN) : '—'}</td>
+                  <td class="num">${g.recommendedHoldMonths > 0 ? g.recommendedHoldMonths + ' mo' : '—'}</td>
                 </tr>
               `).join('')}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" style="font-weight:500">Total recomendado</td>
+                <td class="num" style="color:var(--good);font-weight:600">${mxn(totalConservative)}</td>
+                <td class="num" style="color:var(--warn);font-weight:600">${mxn(totalAggressive)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
 
+          ${totalAggressive > 0 ? `
+            <div class="insight good" style="margin-top:1rem">
+              <strong>📊 Recomendación específica:</strong><br>
+              Podrías mover entre <strong>${mxn(totalConservative)}</strong> (conservador) y <strong>${mxn(totalAggressive)}</strong> (agresivo) a crypto sin comprometer tus metas, manteniendo un colchón de 3 meses de aportes en cada una.<br><br>
+              <strong>Plazo recomendado:</strong> mantén estas posiciones por al menos el plazo que indica cada fila. Antes de ese plazo, retira para llenar la meta a tiempo.
+            </div>
+          ` : `
+            <div class="insight warn" style="margin-top:1rem">
+              <strong>⚠️ Por ahora, mejor no.</strong> Tus metas están en horizontes muy cercanos o no tienes excedente sobre el colchón de seguridad. Sigue ahorrando normal — cuando alguna meta tenga más de 6 meses de excedente sobre el colchón, los números arriba cambiarán.
+            </div>
+          `}
+
           <div class="smart-insight" style="margin-top:1rem">
-            ⚠️ <strong>No es asesoría financiera.</strong> Estos números son guías generales. Crypto puede caer 30-50% rápido. Si te quita el sueño verlo bajar, mejor quédate en pesos.
+            ⚠️ <strong>No es asesoría financiera.</strong> Estos cálculos asumen que tus metas se mantienen y que crypto puede caer 30-50% en semanas. Si pierdes el 50% del monto que metiste, ¿podrías seguir durmiendo tranquilo y llegar a tu meta? Si la respuesta es no, mejor quédate en pesos.
           </div>
         </div>
       `;
