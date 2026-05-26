@@ -23,11 +23,36 @@
     // Migrate planned/catorcena to an editable list if not yet done
     if (!state.budgetCategories) {
       state.budgetCategories = [
-        { id: 'fixed', name: 'Fixed expenses (subs, gym, etc)', monthly: state.planned.fixed || 5319, biweekly: state.catorcena.fixed || 2660, locked: true, key: 'fixed' },
-        { id: 'variable', name: 'Variable (food/transport/impulse)', monthly: state.planned.variable || 2031, biweekly: state.catorcena.variable || 1015, locked: true, key: 'variable' },
-        { id: 'youtube', name: 'YouTube investment', monthly: state.planned.youtube || 1500, biweekly: state.catorcena.youtube || 750, locked: false, key: 'youtube' },
-        { id: 'crypto', name: 'Crypto DCA', monthly: state.planned.crypto || 1000, biweekly: state.catorcena.crypto || 500, locked: false, key: 'crypto' },
+        { id: 'fixed',    name: 'Fixed expenses',          monthly: state.planned.fixed     || 5319, biweekly: state.catorcena.fixed     || 2660, locked: true, key: 'fixed' },
+        { id: 'variable', name: 'Variable',                monthly: state.planned.variable  || 2031, biweekly: state.catorcena.variable  || 1015, locked: true, key: 'variable' },
+        { id: 'car',      name: 'Car savings',             monthly: state.planned.car       || 7000, biweekly: state.catorcena.car       || 3500, locked: false, key: 'car' },
+        { id: 'brazil',   name: 'Brazil savings',          monthly: state.planned.brazil    || 650,  biweekly: state.catorcena.brazil    || 325,  locked: false, key: 'brazil' },
+        { id: 'emergency',name: 'Plus fund',               monthly: state.planned.emergency || 500,  biweekly: state.catorcena.emergency || 250,  locked: false, key: 'emergency' },
+        { id: 'youtube',  name: 'YouTube investment',      monthly: state.planned.youtube   || 1500, biweekly: state.catorcena.youtube   || 750,  locked: false, key: 'youtube' },
+        { id: 'crypto',   name: 'Crypto DCA',              monthly: state.planned.crypto    || 1000, biweekly: state.catorcena.crypto    || 500,  locked: false, key: 'crypto' },
+        { id: 'room',     name: 'Room upgrades',           monthly: state.planned.room      || 500,  biweekly: state.catorcena.room      || 250,  locked: false, key: 'room' },
       ];
+      saveState();
+    }
+
+    // If migration ran with only 4 rows (bug from earlier version), patch it
+    if (state.budgetCategories && state.budgetCategories.length < 8) {
+      const existingIds = state.budgetCategories.map(b => b.id);
+      const defaults = [
+        { id: 'fixed',    name: 'Fixed expenses',     monthly: 5319, biweekly: 2660, locked: true,  key: 'fixed' },
+        { id: 'variable', name: 'Variable',           monthly: 2031, biweekly: 1015, locked: true,  key: 'variable' },
+        { id: 'car',      name: 'Car savings',        monthly: 7000, biweekly: 3500, locked: false, key: 'car' },
+        { id: 'brazil',   name: 'Brazil savings',     monthly: 650,  biweekly: 325,  locked: false, key: 'brazil' },
+        { id: 'emergency',name: 'Plus fund',          monthly: 500,  biweekly: 250,  locked: false, key: 'emergency' },
+        { id: 'youtube',  name: 'YouTube investment', monthly: 1500, biweekly: 750,  locked: false, key: 'youtube' },
+        { id: 'crypto',   name: 'Crypto DCA',         monthly: 1000, biweekly: 500,  locked: false, key: 'crypto' },
+        { id: 'room',     name: 'Room upgrades',      monthly: 500,  biweekly: 250,  locked: false, key: 'room' },
+      ];
+      defaults.forEach(d => {
+        if (!existingIds.includes(d.id)) {
+          state.budgetCategories.push(d);
+        }
+      });
       saveState();
     }
 
