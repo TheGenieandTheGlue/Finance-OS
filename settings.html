@@ -107,6 +107,58 @@
 
       <div class="card fade-in">
         <div class="card-head">
+          <div class="card-title">💳 Tarjeta de crédito</div>
+          <div class="card-meta">Saldo y fechas</div>
+        </div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.6;margin-bottom:1rem">
+          Actualiza el saldo cuando hagas un pago o veas un cambio grande en tu estado de cuenta.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">Saldo actual (MXN)</label>
+            <input type="number" value="${(state.card && state.card.currentBalance) || 0}" onchange="updateCardField('currentBalance', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">Día de corte</label>
+            <input type="number" min="1" max="31" value="${(state.card && state.card.cutDay) || 23}" onchange="updateCardField('cutDay', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">Día de pago</label>
+            <input type="number" min="1" max="31" value="${(state.card && state.card.paymentDay) || 12}" onchange="updateCardField('paymentDay', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
+          <div class="card-title">🏦 Apartados (saldos actuales)</div>
+          <div class="card-meta">Tu dinero líquido ahora</div>
+        </div>
+        <p style="font-size:14px;color:var(--ink-soft);line-height:1.6;margin-bottom:1rem">
+          Estos son los saldos de tus 4 apartados de cash flow del mes (no metas a largo plazo). Para metas (Mazda, Brasil, Renovación), edita el "Saldo inicial" en <a href="goals.html" style="color:var(--info)">Goals page</a>.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">🏠 Fijos</label>
+            <input type="number" value="${(state.apartadoBalances && state.apartadoBalances.fijos) || 0}" onchange="updateApartadoBalance('fijos', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">💸 Variables</label>
+            <input type="number" value="${(state.apartadoBalances && state.apartadoBalances.variable) || 0}" onchange="updateApartadoBalance('variable', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">🎬 YouTube</label>
+            <input type="number" value="${(state.apartadoBalances && state.apartadoBalances.youtube) || 0}" onchange="updateApartadoBalance('youtube', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-mute);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px">🪙 Inversiones</label>
+            <input type="number" value="${(state.apartadoBalances && state.apartadoBalances.inversiones) || 0}" onchange="updateApartadoBalance('inversiones', this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-elev);font-family:inherit;font-size:14px">
+          </div>
+        </div>
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-head">
           <div class="card-title">💾 Backup &amp; restore</div>
           <div class="card-meta">${sizeKB} KB used</div>
         </div>
@@ -223,6 +275,18 @@
       state.income.paydayAnchor = val;
       saveState();
       location.reload();
+    }
+
+    function updateCardField(field, value) {
+      if (!state.card) state.card = { currentBalance: 0, cutDay: 23, paymentDay: 12 };
+      state.card[field] = parseFloat(value) || 0;
+      saveState();
+    }
+
+    function updateApartadoBalance(key, value) {
+      if (!state.apartadoBalances) state.apartadoBalances = {};
+      state.apartadoBalances[key] = parseFloat(value) || 0;
+      saveState();
     }
 
     mountAddModal();

@@ -95,7 +95,7 @@
               <div class="card-meta">${mxn(state.income.biweekly)} planned</div>
             </div>
             <table class="budget-table">
-              <thead><tr><th>Category</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Left</th></tr></thead>
+              <thead><tr><th>Category</th><th class="num">Plan</th><th class="num">Movido</th><th class="num">Left</th></tr></thead>
               <tbody>
                 ${budgetRow('Fixed', state.catorcena.fixed, actuals.fixed)}
                 ${budgetRow('Variable', state.catorcena.variable, actuals.variable)}
@@ -143,6 +143,40 @@
               Run setup on every payday · Subs on day 1 of month.
             </div>
           </div>
+
+          ${(() => {
+            const card = state.card || { currentBalance: 0, cutDay: 23, paymentDay: 12 };
+            const fijos = (state.apartadoBalances && state.apartadoBalances.fijos) || 0;
+            const vars = (state.apartadoBalances && state.apartadoBalances.variable) || 0;
+            const cubierto = fijos + vars;
+            const gap = card.currentBalance - cubierto;
+            const today = new Date();
+            const nextPayment = new Date(today.getFullYear(), today.getMonth() + (today.getDate() > card.paymentDay ? 1 : 0), card.paymentDay);
+            const daysUntilPayment = Math.ceil((nextPayment - today) / 86400000);
+            const statusColor = gap <= 0 ? 'var(--good)' : 'var(--warn)';
+            const statusMsg = gap <= 0
+              ? '✓ Cubierto totalmente'
+              : `⚠ Faltan <strong>${mxn(gap)}</strong>`;
+            return `
+              <div class="side-card fade-in">
+                <h3>💳 Tarjeta</h3>
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+                  <span style="color:var(--ink-mute)">Debes:</span>
+                  <strong>${mxn(card.currentBalance)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+                  <span style="color:var(--ink-mute)">Cubierto (Fijos+Var):</span>
+                  <span style="color:var(--good)">${mxn(cubierto)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-top:1px solid var(--line-soft);margin-top:6px;padding-top:8px">
+                  <span style="color:${statusColor}">${statusMsg}</span>
+                </div>
+                <div style="font-size:11px;color:var(--ink-mute);margin-top:8px">
+                  Pago: día ${card.paymentDay} (faltan ${daysUntilPayment} días)
+                </div>
+              </div>
+            `;
+          })()}
 
           <div class="side-card fade-in">
             <h3>Pace check</h3>
